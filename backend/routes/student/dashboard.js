@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../../config/db');
 const authStudent = require('../../middleware/authStudent');
+const { formatQuestionRow } = require('../../utils/questionHelpers');
 
 const router = express.Router();
 router.use(authStudent);
@@ -174,7 +175,7 @@ router.get('/assignments/:id', async (req, res) => {
       'SELECT * FROM assignment_questions WHERE assignment_id = ? ORDER BY sort_order, id',
       [req.params.id],
     );
-    res.json({ success: true, data: { ...rows[0], questions } });
+    res.json({ success: true, data: { ...rows[0], questions: questions.map(formatQuestionRow) } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'فشل تحميل الواجب' });
@@ -226,7 +227,7 @@ router.get('/exams/:id', async (req, res) => {
       'SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY sort_order, id',
       [req.params.id],
     );
-    res.json({ success: true, data: { ...rows[0], questions } });
+    res.json({ success: true, data: { ...rows[0], questions: questions.map(formatQuestionRow) } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'فشل تحميل الاختبار' });

@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../../config/db');
 const authAdmin = require('../../middleware/authAdmin');
+const { normalizeQuestionInput, formatQuestionRow } = require('../../utils/questionHelpers');
 
 const router = express.Router();
 router.use(authAdmin);
@@ -8,12 +9,23 @@ router.use(authAdmin);
 async function replaceExamQuestions(examId, questions = [], connection = pool) {
   await connection.query('DELETE FROM exam_questions WHERE exam_id = ?', [examId]);
   let order = 1;
-  for (const q of questions) {
-    if (!q?.question_text?.trim()) continue;
+  for (const raw of questions) {
+    const q = normalizeQuestionInput(raw);
+    if (!q.question_text) continue;
     await connection.query(
-      `INSERT INTO exam_questions (exam_id, question_text, image_url, pdf_url, sort_order)
-       VALUES (?, ?, ?, ?, ?)`,
-      [examId, q.question_text.trim(), q.image_url || null, q.pdf_url || null, order],
+      `INSERT INTO exam_questions
+        (exam_id, question_text, question_type, image_url, pdf_url, options, correct_answer, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        examId,
+        q.question_text,
+        q.question_type,
+        q.image_url,
+        q.pdf_url,
+        q.options,
+        q.correct_answer,
+        order,
+      ],
     );
     order += 1;
   }
@@ -25,7 +37,7 @@ async function fetchQuestions(examId) {
     'SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY sort_order, id',
     [examId],
   );
-  return rows;
+  return rows.map(formatQuestionRow);
 }
 
 router.get('/', async (req, res) => {

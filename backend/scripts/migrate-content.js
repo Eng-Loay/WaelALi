@@ -38,6 +38,12 @@ async function migrate() {
     ['assignments', 'image_url', 'ALTER TABLE assignments ADD COLUMN image_url VARCHAR(500) NULL AFTER description_ar'],
     ['exams', 'grade_id', 'ALTER TABLE exams ADD COLUMN grade_id INT NULL AFTER course_id'],
     ['exams', 'image_url', 'ALTER TABLE exams ADD COLUMN image_url VARCHAR(500) NULL AFTER description_ar'],
+    ['assignment_questions', 'question_type', "ALTER TABLE assignment_questions ADD COLUMN question_type ENUM('text','true_false','multiple_choice') NOT NULL DEFAULT 'text' AFTER question_text"],
+    ['assignment_questions', 'options', 'ALTER TABLE assignment_questions ADD COLUMN options JSON NULL AFTER pdf_url'],
+    ['assignment_questions', 'correct_answer', 'ALTER TABLE assignment_questions ADD COLUMN correct_answer TEXT NULL AFTER options'],
+    ['exam_questions', 'question_type', "ALTER TABLE exam_questions ADD COLUMN question_type ENUM('text','true_false','multiple_choice') NOT NULL DEFAULT 'text' AFTER question_text"],
+    ['exam_questions', 'options', 'ALTER TABLE exam_questions ADD COLUMN options JSON NULL AFTER pdf_url'],
+    ['exam_questions', 'correct_answer', 'ALTER TABLE exam_questions ADD COLUMN correct_answer TEXT NULL AFTER options'],
   ];
 
   for (const [table, column, sql] of alters) {

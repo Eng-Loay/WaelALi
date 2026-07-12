@@ -1,0 +1,11 @@
+node_modules/
+.env
+dist/
+.DS_Store
+*.log
+backend/uploads/*
+!backend/uploads/.gitkeep
+scripts/deploy_explore*.py
+scripts/deploy_check.py
+scripts/deploy_to_server.py
+scripts/verify_*.py

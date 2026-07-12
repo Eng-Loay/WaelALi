@@ -2,7 +2,7 @@
 
 A modern, beautiful math teaching platform for **Mr. Wael Ali**, built with React, Node.js, Express, and MySQL.
 
-Inspired by [mr-mohamed-saeed.com](https://www.mr-mohamed-saeed.com/) but with a superior design featuring the Wael Ali brand (black, red, and off-white palette with π motif).
+
 
 ## Features
 

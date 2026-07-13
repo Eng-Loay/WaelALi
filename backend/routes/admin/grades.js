@@ -8,7 +8,7 @@ router.use(authAdmin);
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT * FROM grades ORDER BY FIELD(stage, \'secondary\', \'preparatory\'), year_order, sort_order, id',
+      'SELECT * FROM grades ORDER BY FIELD(stage, \'secondary\', \'preparatory\'), year_order DESC, sort_order DESC, id',
     );
     res.json({ success: true, data: rows });
   } catch (error) {

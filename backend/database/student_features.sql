@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS students (
   email VARCHAR(200) NOT NULL UNIQUE,
   phone VARCHAR(20),
   parent_phone VARCHAR(20),
+  governorate VARCHAR(80),
+  address TEXT,
   password_hash VARCHAR(255) NOT NULL,
   grade_id INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

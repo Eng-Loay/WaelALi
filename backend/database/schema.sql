@@ -47,8 +47,11 @@ CREATE TABLE IF NOT EXISTS testimonials (
 CREATE TABLE IF NOT EXISTS subscribers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
-  email VARCHAR(200) NOT NULL UNIQUE,
+  email VARCHAR(200) UNIQUE,
   phone VARCHAR(20),
+  parent_phone VARCHAR(20),
+  governorate VARCHAR(80),
+  address TEXT,
   grade_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (grade_id) REFERENCES grades(id) ON DELETE SET NULL

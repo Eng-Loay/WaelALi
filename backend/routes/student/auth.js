@@ -6,12 +6,18 @@ const { hashPassword, verifyPassword } = require('../../utils/password');
 const router = express.Router();
 
 router.post('/register', async (req, res) => {
-  const { name, email, phone, parent_phone, password, grade_id } = req.body;
+  const { name, email, phone, parent_phone, governorate, address, password, grade_id } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ success: false, message: 'الاسم والبريد وكلمة المرور مطلوبين' });
   }
   if (!parent_phone || !String(parent_phone).trim()) {
     return res.status(400).json({ success: false, message: 'رقم ولي الأمر مطلوب للتسجيل' });
+  }
+  if (!governorate || !String(governorate).trim()) {
+    return res.status(400).json({ success: false, message: 'المحافظة مطلوبة' });
+  }
+  if (!address || !String(address).trim()) {
+    return res.status(400).json({ success: false, message: 'العنوان مطلوب' });
   }
   if (!grade_id) {
     return res.status(400).json({ success: false, message: 'الصف الدراسي مطلوب' });
@@ -28,9 +34,18 @@ router.post('/register', async (req, res) => {
 
     const password_hash = hashPassword(password);
     const [result] = await pool.query(
-      `INSERT INTO students (name, email, phone, parent_phone, password_hash, grade_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, email, phone || null, String(parent_phone).trim(), password_hash, grade_id],
+      `INSERT INTO students (name, email, phone, parent_phone, governorate, address, password_hash, grade_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        email,
+        phone || null,
+        String(parent_phone).trim(),
+        String(governorate).trim(),
+        String(address).trim(),
+        password_hash,
+        grade_id,
+      ],
     );
 
     // Auto-enroll featured courses for the selected grade (or all featured)

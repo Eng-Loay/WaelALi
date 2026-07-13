@@ -5,7 +5,7 @@ const pool = require('../config/db');
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT * FROM grades ORDER BY FIELD(stage, \'secondary\', \'preparatory\'), year_order ASC, sort_order ASC'
+      'SELECT * FROM grades ORDER BY FIELD(stage, \'secondary\', \'preparatory\'), year_order DESC, sort_order DESC'
     );
     res.json(rows);
   } catch (error) {

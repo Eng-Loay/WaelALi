@@ -12,7 +12,7 @@ async function setup() {
   try {
     connection = await mysql.createConnection({
       host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '3307', 10),
+      port: parseInt(process.env.DB_PORT || '3306', 10),
       user: process.env.DB_USER || 'root',
       password,
       multipleStatements: true,
@@ -34,7 +34,8 @@ async function setup() {
     console.log(`  Grades: ${grades[0].count}`);
     console.log(`  Courses: ${courses[0].count}`);
     console.log(`  Features: ${features[0].count}`);
-    console.log('\nUpdate backend/.env with your MySQL password, then restart the server.');
+    console.log('\nRun configure-env to save password to .env:');
+    console.log('  npm run configure-env -- YOUR_PASSWORD');
   } catch (error) {
     console.error('\nSetup failed:', error.message);
 

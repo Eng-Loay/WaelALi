@@ -44,6 +44,11 @@ async function migrate() {
     ['exam_questions', 'question_type', "ALTER TABLE exam_questions ADD COLUMN question_type ENUM('text','true_false','multiple_choice') NOT NULL DEFAULT 'text' AFTER question_text"],
     ['exam_questions', 'options', 'ALTER TABLE exam_questions ADD COLUMN options JSON NULL AFTER pdf_url'],
     ['exam_questions', 'correct_answer', 'ALTER TABLE exam_questions ADD COLUMN correct_answer TEXT NULL AFTER options'],
+    ['subscribers', 'parent_phone', 'ALTER TABLE subscribers ADD COLUMN parent_phone VARCHAR(20) NULL AFTER phone'],
+    ['subscribers', 'governorate', 'ALTER TABLE subscribers ADD COLUMN governorate VARCHAR(80) NULL AFTER parent_phone'],
+    ['subscribers', 'address', 'ALTER TABLE subscribers ADD COLUMN address TEXT NULL AFTER governorate'],
+    ['students', 'governorate', 'ALTER TABLE students ADD COLUMN governorate VARCHAR(80) NULL AFTER parent_phone'],
+    ['students', 'address', 'ALTER TABLE students ADD COLUMN address TEXT NULL AFTER governorate'],
   ];
 
   for (const [table, column, sql] of alters) {
@@ -51,6 +56,13 @@ async function migrate() {
       await connection.query(sql);
       console.log(`Added ${table}.${column}`);
     }
+  }
+
+  try {
+    await connection.query('ALTER TABLE subscribers MODIFY email VARCHAR(200) NULL');
+    console.log('Updated subscribers.email to allow NULL');
+  } catch (err) {
+    if (!String(err.message).includes('Duplicate')) console.log('subscribers.email:', err.message);
   }
 
   const sqlPath = path.join(__dirname, '..', 'database', 'content_features.sql');

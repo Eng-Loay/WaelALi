@@ -1,0 +1,77 @@
+.hero-orbit {
+  position: absolute;
+  inset: -8%;
+  width: 116%;
+  height: 116%;
+  left: -8%;
+  top: -8%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  animation: orbitFadeIn 1s ease 1.5s forwards;
+}
+
+@keyframes orbitFadeIn {
+  to { opacity: 1; }
+}
+
+.hero-orbit__ring {
+  fill: none;
+  stroke: rgba(230, 57, 70, 0.1);
+  stroke-width: 0.35;
+  stroke-dasharray: 4 6;
+  transform-origin: 50px 50px;
+  animation: orbitSpin 36s linear infinite;
+}
+
+.hero-orbit__ring--inner {
+  stroke: rgba(29, 53, 87, 0.1);
+  stroke-dasharray: 2 8;
+  animation: orbitSpin 22s linear infinite reverse;
+}
+
+.hero-orbit__traveler {
+  fill: var(--red, #E63946);
+  transform-origin: 50px 50px;
+  animation: orbitSpin 12s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(230, 57, 70, 0.6));
+}
+
+.hero-orbit__line {
+  stroke: rgba(230, 57, 70, 0.08);
+  stroke-width: 0.3;
+  stroke-dasharray: 2 4;
+  transition: stroke 0.5s ease, stroke-width 0.5s ease;
+}
+
+.hero-orbit__line--active {
+  stroke: rgba(230, 57, 70, 0.35);
+  stroke-width: 0.5;
+  stroke-dasharray: 4 2;
+  animation: linePulse 1.3s ease-in-out infinite;
+}
+
+@keyframes orbitSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes linePulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .hero-orbit {
+    inset: -4%;
+    width: 108%;
+    height: 108%;
+    left: -4%;
+    top: -4%;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-orbit {
+    opacity: 0.5;
+  }
+}

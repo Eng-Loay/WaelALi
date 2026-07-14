@@ -1,0 +1,9 @@
+.page-shell {
+  padding-top: 80px;
+  min-height: 100vh;
+  background: var(--off-white);
+}
+
+.page-shell .section {
+  padding-top: 48px;
+}

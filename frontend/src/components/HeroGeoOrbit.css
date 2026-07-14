@@ -1,0 +1,110 @@
+.hero-geo-orbit {
+  position: absolute;
+  inset: 0 0 118px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+}
+
+.hero-geo-orbit--show {
+  animation: geoOrbitFade 1s ease 0.6s forwards;
+}
+
+@keyframes geoOrbitFade {
+  to { opacity: 1; }
+}
+
+.hero-geo-orbit__lane {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  animation: geoLaneSpin var(--duration) linear infinite;
+  animation-delay: var(--delay);
+}
+
+.hero-geo-orbit__lane--reverse {
+  animation-direction: reverse;
+}
+
+@keyframes geoLaneSpin {
+  from { transform: rotate(var(--start-angle)); }
+  to { transform: rotate(calc(var(--start-angle) + 360deg)); }
+}
+
+.hero-geo-orbit__flyer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(calc(var(--radius) * -1));
+}
+
+.hero-geo-orbit__shape {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card-bg) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation:
+    geoBob var(--bob-duration) ease-in-out infinite,
+    geoSelfSpin var(--self-duration) linear infinite;
+}
+
+.hero-geo-orbit__lane--reverse .hero-geo-orbit__shape {
+  animation:
+    geoBob var(--bob-duration) ease-in-out infinite,
+    geoSelfSpin var(--self-duration) linear infinite reverse;
+}
+
+@keyframes geoBob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-12px) scale(1.06); }
+}
+
+@keyframes geoSelfSpin {
+  from { rotate: 0deg; }
+  to { rotate: -360deg; }
+}
+
+.hero-geo-orbit__pi {
+  font-weight: 800;
+  line-height: 1;
+  font-family: 'Playfair Display', serif;
+}
+
+@media (max-width: 900px) {
+  .hero-geo-orbit {
+    transform: scale(0.84);
+    transform-origin: center 42%;
+  }
+
+  .hero-geo-orbit__shape {
+    padding: 6px;
+    border-radius: 10px;
+  }
+
+  .hero-geo-orbit__shape svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-geo-orbit {
+    transform: scale(0.72);
+    inset: 0 0 100px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-geo-orbit__lane,
+  .hero-geo-orbit__shape {
+    animation: none !important;
+  }
+}

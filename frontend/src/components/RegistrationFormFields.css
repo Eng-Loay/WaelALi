@@ -1,0 +1,100 @@
+.reg-form__hint {
+  font-size: 0.88rem;
+  color: var(--gray-500, #64748b);
+  margin-bottom: 1.25rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.reg-form__hint--auth {
+  text-align: right;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.reg-form--underline .reg-form__grid--underline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.25rem;
+}
+
+.reg-form--underline .auth-field {
+  margin-bottom: 0.85rem;
+}
+
+.reg-form__field-note--center {
+  display: block;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.reg-form__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.1rem;
+}
+
+.reg-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.reg-form__field--full {
+  grid-column: 1 / -1;
+}
+
+.reg-form__field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--black-soft, #334155);
+}
+
+.reg-form__field input,
+.reg-form__field select {
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border: 2px solid var(--gray-200, #e2e8f0);
+  border-radius: 0.75rem;
+  font-size: 0.92rem;
+  transition: var(--transition, 0.2s ease);
+  background: var(--input-bg, #fff);
+  color: var(--black, #0f172a);
+}
+
+.reg-form__field select option {
+  color: #1a1a1a;
+  background: #ffffff;
+}
+
+.reg-form__field-note {
+  font-size: 0.78rem;
+  color: var(--red, #e63946);
+  margin-top: 0.35rem;
+}
+
+.reg-form__field input:focus,
+.reg-form__field select:focus {
+  outline: none;
+  border-color: var(--red, #e63946);
+  box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.1);
+}
+
+.dash-auth-form .reg-form__field label {
+  color: #334155;
+}
+
+.dash-auth-form .reg-form__field input,
+.dash-auth-form .reg-form__field select {
+  border-radius: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .reg-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reg-form--underline .reg-form__grid--underline {
+    grid-template-columns: 1fr;
+  }
+}

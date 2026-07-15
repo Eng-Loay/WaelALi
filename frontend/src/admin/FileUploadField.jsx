@@ -36,6 +36,7 @@ export default function FileUploadField({
             <span>
               {uploadKind === 'image' && 'صورة: JPG, PNG, WEBP'}
               {uploadKind === 'video' && 'فيديو: MP4, WEBM'}
+              {uploadKind === 'audio' && 'ريكورد: صوت أو فيديو'}
               {uploadKind === 'pdf' && 'PDF فقط'}
             </span>
           </div>

@@ -117,14 +117,24 @@ router.post('/login', async (req, res) => {
 router.get('/me', (req, res) => {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false });
+    return res.status(401).json({ success: false, message: 'انتهت الجلسة، سجّل دخولك مرة أخرى' });
   }
   try {
     const payload = verifyToken(header.slice(7));
     if (payload.role !== 'student') return res.status(403).json({ success: false });
-    res.json({ success: true, data: { user: payload } });
+    const user = {
+      id: payload.id,
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone,
+      parent_phone: payload.parent_phone,
+      grade_id: payload.grade_id,
+      role: 'student',
+    };
+    const accessToken = signToken(user);
+    res.json({ success: true, data: { user, accessToken } });
   } catch {
-    res.status(401).json({ success: false });
+    res.status(401).json({ success: false, message: 'انتهت الجلسة، سجّل دخولك مرة أخرى' });
   }
 });
 

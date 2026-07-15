@@ -22,7 +22,7 @@ export const translations = {
       themeDark: 'الوضع الداكن',
     },
     hero: {
-      badge: 'مدرس رياضيات',
+      badge: 'مدرس ماث',
       namePrefix: 'مستر ',
       name: 'وائل علي',
       tagline: ['هتفهم القانون', 'هتطبق الفكرة', 'هتقفل الامتحان'],
@@ -171,7 +171,7 @@ export const translations = {
       contact: 'تواصل معنا',
       social: 'تابعنا على السوشيال',
       rights: '© 2026 مستر وائل علي - جميع الحقوق محفوظة',
-      badge: 'π مدرس رياضيات',
+      badge: 'π مدرس ماث',
     },
     coursesPage: {
       back: 'الرئيسية',
@@ -211,7 +211,7 @@ export const translations = {
       themeDark: 'Dark mode',
     },
     hero: {
-      badge: 'Mathematics Teacher',
+      badge: 'Math Teacher',
       namePrefix: 'Mr. ',
       name: 'Wael Ali',
       tagline: ['Understand the rule', 'Apply the idea', 'Ace the exam'],
@@ -360,7 +360,7 @@ export const translations = {
       contact: 'Contact Us',
       social: 'Follow us on social',
       rights: '© 2026 Mr. Wael Ali - All rights reserved',
-      badge: 'π Mathematics Teacher',
+      badge: 'π Math Teacher',
     },
     coursesPage: {
       back: 'Home',

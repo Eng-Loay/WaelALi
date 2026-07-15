@@ -1,3 +1,8 @@
+/**
+ * Important: do NOT overwrite server .env on each deploy.
+ * JWT_SECRET must stay the same forever or all logins invalidate after restart.
+ * Prefer setting JWT_SECRET (and JWT_EXPIRES_HOURS) inside the preserved .env next to server.js.
+ */
 module.exports = {
   apps: [
     {

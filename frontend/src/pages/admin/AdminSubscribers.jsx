@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { adminResource } from '../../api/adminApi';
 import {
   createAdminStudent,
@@ -25,6 +26,9 @@ const emptyStudentForm = {
 };
 
 export default function AdminSubscribers() {
+  const [searchParams] = useSearchParams();
+  const filterCourseId = searchParams.get('course_id');
+
   const [rows, setRows] = useState([]);
   const [grades, setGrades] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -46,7 +50,7 @@ export default function AdminSubscribers() {
 
   const load = () => {
     setLoading(true);
-    fetchAdminStudents()
+    fetchAdminStudents(filterCourseId)
       .then((res) => setRows(res.data || []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -60,7 +64,7 @@ export default function AdminSubscribers() {
         setGrades(gradesRes.data || []);
       })
       .catch(console.error);
-  }, []);
+  }, [filterCourseId]);
 
   const resetAddModal = () => {
     setStudentForm(emptyStudentForm);
@@ -148,6 +152,8 @@ export default function AdminSubscribers() {
     }
   };
 
+  const filteredCourse = courses.find((c) => String(c.id) === filterCourseId);
+
   return (
     <div className="dash-page">
       <div className="dash-toolbar">
@@ -159,15 +165,31 @@ export default function AdminSubscribers() {
           <button type="button" className="dash-btn dash-btn--outline" onClick={openEnrollModal}>
             إضافة طالب لدورة
           </button>
+          {filterCourseId && (
+            <Link to="/admin/subscribers" className="dash-btn dash-btn--outline">
+              عرض كل الطلاب
+            </Link>
+          )}
         </div>
       </div>
+
+      {filterCourseId && filteredCourse && (
+        <div className="admin-alert success" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>
+            عرض الطلاب المسجلين في كورس: <strong>{filteredCourse.title_ar} {filteredCourse.title_en ? `(${filteredCourse.title_en})` : ''}</strong>
+          </span>
+          <Link to="/admin/subscribers" style={{ color: 'var(--dash-navy)', fontWeight: 'bold', textDecoration: 'none' }}>
+            إلغاء الفلترة ✕
+          </Link>
+        </div>
+      )}
 
       {error && !addOpen && !enrollOpen && <div className="admin-alert error">{error}</div>}
       {success && <div className="admin-alert success">{success}</div>}
 
       <div className="dash-panel dash-panel--table">
         <div className="dash-panel__head">
-          <h2>الطلاب</h2>
+          <h2>{filterCourseId && filteredCourse ? `الطلاب — ${filteredCourse.title_ar}` : 'الطلاب'}</h2>
           <span>{rows.length} طالب</span>
         </div>
 

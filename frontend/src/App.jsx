@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import ScrollToTop from "./components/ScrollToTop";
 import Home from "./pages/Home";
 import GradesPage from "./pages/GradesPage";
@@ -9,7 +9,7 @@ import AdminLayout from "./admin/AdminLayout";
 import AdminProtected from "./admin/AdminProtected";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminCourses from "./pages/admin/AdminCourses";
-import AdminCourseSections from "./pages/admin/AdminCourseSections";
+import AdminCourseContent from "./pages/admin/AdminCourseContent";
 import AdminGrades from "./pages/admin/AdminGrades";
 import AdminSubscribers from "./pages/admin/AdminSubscribers";
 import AdminCoupons from "./pages/admin/AdminCoupons";
@@ -26,6 +26,11 @@ import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentCourses from "./pages/student/StudentCourses";
 import StudentAssignments from "./pages/student/StudentAssignments";
 import StudentExams from "./pages/student/StudentExams";
+
+function CourseSectionsRedirect() {
+  const { courseId } = useParams();
+  return <Navigate to={`/admin/courses/${courseId}/content`} replace />;
+}
 
 export default function App() {
   return (
@@ -65,7 +70,8 @@ export default function App() {
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="courses" element={<AdminCourses />} />
-            <Route path="courses/:courseId/sections" element={<AdminCourseSections />} />
+            <Route path="courses/:courseId/content" element={<AdminCourseContent />} />
+            <Route path="courses/:courseId/sections" element={<CourseSectionsRedirect />} />
             <Route path="grades" element={<AdminGrades />} />
             <Route path="assignments" element={<AdminAssignments />} />
             <Route path="exams" element={<AdminExams />} />

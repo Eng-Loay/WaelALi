@@ -36,6 +36,7 @@ const emptyForm = {
   file_url: '',
   due_date: '',
   status: 'published',
+  delivery_mode: 'pdf',
 };
 
 export default function AdminAssignments() {
@@ -87,7 +88,7 @@ export default function AdminAssignments() {
   const openCreate = () => {
     resetForm();
     setStage('');
-    setQuestions([emptyQuestion()]);
+    setForm({ ...emptyForm, delivery_mode: 'pdf' });
     setModalOpen(true);
   };
 
@@ -96,6 +97,9 @@ export default function AdminAssignments() {
     try {
       const res = await assignmentsApi.get(row.id);
       const data = res.data;
+      const mode = data.delivery_mode === 'pdf' || data.delivery_mode === 'manual'
+        ? data.delivery_mode
+        : (data.file_url ? 'pdf' : 'manual');
       setForm({
         grade_id: data.grade_id ? String(data.grade_id) : '',
         course_id: data.course_id ? String(data.course_id) : '',
@@ -105,17 +109,37 @@ export default function AdminAssignments() {
         file_url: data.file_url || '',
         due_date: data.due_date ? String(data.due_date).slice(0, 10) : '',
         status: data.status || 'published',
+        delivery_mode: mode,
       });
       setStage(getStageFromGradeId(grades, data.grade_id));
-      setQuestions((data.questions || []).length
-        ? data.questions.map(normalizeLoadedQuestion)
-        : [emptyQuestion()]);
+      setQuestions(
+        mode === 'manual' && (data.questions || []).length
+          ? data.questions.map(normalizeLoadedQuestion)
+          : mode === 'manual'
+            ? [emptyQuestion()]
+            : [],
+      );
       setFiles({});
       setQuestionFiles({});
       setEditingId(row.id);
       setModalOpen(true);
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const setDeliveryMode = (mode) => {
+    setForm((prev) => ({
+      ...prev,
+      delivery_mode: mode,
+      file_url: mode === 'pdf' ? prev.file_url : '',
+    }));
+    if (mode === 'manual') {
+      setQuestions((prev) => (prev.length ? prev : [emptyQuestion()]));
+      setFiles((prev) => ({ ...prev, file_url: null }));
+    } else {
+      setQuestions([]);
+      setQuestionFiles({});
     }
   };
 
@@ -128,21 +152,34 @@ export default function AdminAssignments() {
     setSaving(true);
     setError('');
     try {
+      const mode = form.delivery_mode === 'pdf' ? 'pdf' : 'manual';
       const payload = {
         ...form,
+        delivery_mode: mode,
         grade_id: form.grade_id ? Number(form.grade_id) : null,
         course_id: form.course_id ? Number(form.course_id) : null,
-        questions: [...questions],
+        questions: mode === 'manual' ? [...questions] : [],
+        file_url: mode === 'pdf' ? form.file_url : '',
       };
 
       if (files.image_url) payload.image_url = await uploadAdminFile(files.image_url, 'image');
-      if (files.file_url) payload.file_url = await uploadAdminFile(files.file_url, 'pdf');
 
-      for (let i = 0; i < payload.questions.length; i += 1) {
-        const imgFile = questionFiles[`q${i}_image`];
-        const pdfFile = questionFiles[`q${i}_pdf`];
-        if (imgFile) payload.questions[i].image_url = await uploadAdminFile(imgFile, 'image');
-        if (pdfFile) payload.questions[i].pdf_url = await uploadAdminFile(pdfFile, 'pdf');
+      if (mode === 'pdf') {
+        if (files.file_url) payload.file_url = await uploadAdminFile(files.file_url, 'pdf');
+        if (!String(payload.file_url || '').trim()) {
+          throw new Error('ارفع ملف PDF للواجب');
+        }
+      } else {
+        payload.file_url = '';
+        for (let i = 0; i < payload.questions.length; i += 1) {
+          const imgFile = questionFiles[`q${i}_image`];
+          const pdfFile = questionFiles[`q${i}_pdf`];
+          if (imgFile) payload.questions[i].image_url = await uploadAdminFile(imgFile, 'image');
+          if (pdfFile) payload.questions[i].pdf_url = await uploadAdminFile(pdfFile, 'pdf');
+        }
+        if (!payload.questions.some((q) => String(q.question_text || '').trim())) {
+          throw new Error('أضف سؤال واحد على الأقل');
+        }
       }
 
       if (editingId) await assignmentsApi.update(editingId, payload);
@@ -190,16 +227,20 @@ export default function AdminAssignments() {
             { key: 'title_ar', label: 'العنوان' },
             { key: 'grade_name', label: 'الصف', render: (r) => r.grade_name || '—' },
             { key: 'course_title', label: 'الكورس', render: (r) => r.course_title || '—' },
-            { key: 'questions_count', label: 'أسئلة يدوية' },
             {
-              key: 'image_url',
-              label: 'صورة',
-              render: (r) => (r.image_url ? '✓' : '—'),
+              key: 'delivery_mode',
+              label: 'نوع التسليم',
+              render: (r) => (r.delivery_mode === 'pdf' || r.file_url ? 'PDF' : 'يدوي'),
+            },
+            {
+              key: 'questions_count',
+              label: 'أسئلة',
+              render: (r) => (r.delivery_mode === 'pdf' ? '—' : (r.questions_count || 0)),
             },
             {
               key: 'file_url',
               label: 'PDF',
-              render: (r) => (r.file_url ? fileLinkLabel(r.file_url) : '—'),
+              render: (r) => (r.delivery_mode === 'pdf' && r.file_url ? fileLinkLabel(r.file_url) : '—'),
             },
             { key: 'due_date', label: 'التسليم', render: (r) => r.due_date || '—' },
             { key: 'status', label: 'الحالة' },
@@ -257,13 +298,56 @@ export default function AdminAssignments() {
               </select>
             </label>
 
-            <div className="dash-form-section">
-              <h3>ملفات الواجب (صورة + PDF)</h3>
-            </div>
-            <FileUploadField label="صورة الواجب" accept="image/*" uploadKind="image" value={form.image_url} file={files.image_url} onFileChange={(f) => setFiles((p) => ({ ...p, image_url: f }))} />
-            <FileUploadField label="ملف الواجب (PDF)" accept="application/pdf,.pdf" uploadKind="pdf" value={form.file_url} file={files.file_url} onFileChange={(f) => setFiles((p) => ({ ...p, file_url: f }))} />
+            <FileUploadField
+              label="صورة الواجب (اختياري)"
+              accept="image/*"
+              uploadKind="image"
+              value={form.image_url}
+              file={files.image_url}
+              onFileChange={(f) => setFiles((p) => ({ ...p, image_url: f }))}
+            />
 
-            <QuestionsEditor questions={questions} onChange={setQuestions} fileState={questionFiles} onFileChange={onQuestionFile} />
+            <div className="dash-form-section admin-form-full">
+              <h3>طريقة الواجب</h3>
+              <p className="dash-questions-editor__hint">
+                اختار طريقة واحدة واحدة: إما رفع PDF للطالب يرد عليه بـ PDF، أو أسئلة يدوية يجيب عليها داخل المنصة.
+              </p>
+              <div className="assignment-mode-toggle" role="group" aria-label="طريقة الواجب">
+                <button
+                  type="button"
+                  className={`assignment-mode-toggle__btn${form.delivery_mode === 'pdf' ? ' is-active' : ''}`}
+                  onClick={() => setDeliveryMode('pdf')}
+                >
+                  رفع PDF
+                </button>
+                <button
+                  type="button"
+                  className={`assignment-mode-toggle__btn${form.delivery_mode === 'manual' ? ' is-active' : ''}`}
+                  onClick={() => setDeliveryMode('manual')}
+                >
+                  أسئلة يدوية
+                </button>
+              </div>
+            </div>
+
+            {form.delivery_mode === 'pdf' ? (
+              <FileUploadField
+                label="ملف الواجب (PDF)"
+                accept="application/pdf,.pdf"
+                uploadKind="pdf"
+                value={form.file_url}
+                file={files.file_url}
+                onFileChange={(f) => setFiles((p) => ({ ...p, file_url: f }))}
+                required={!form.file_url}
+              />
+            ) : (
+              <QuestionsEditor
+                questions={questions}
+                onChange={setQuestions}
+                fileState={questionFiles}
+                onFileChange={onQuestionFile}
+              />
+            )}
           </div>
           <div className="admin-form-actions">
             <button type="submit" className="dash-btn dash-btn--primary" disabled={saving}>{saving ? 'جاري الحفظ...' : 'حفظ'}</button>

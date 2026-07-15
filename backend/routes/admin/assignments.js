@@ -6,6 +6,14 @@ const { normalizeQuestionInput, formatQuestionRow } = require('../../utils/quest
 const router = express.Router();
 router.use(authAdmin);
 
+function resolveDeliveryMode(body, questionCount, fileUrl) {
+  const raw = String(body.delivery_mode || '').trim();
+  if (raw === 'pdf' || raw === 'manual') return raw;
+  if (fileUrl) return 'pdf';
+  if (questionCount > 0) return 'manual';
+  return 'manual';
+}
+
 async function replaceAssignmentQuestions(assignmentId, questions = [], connection = pool) {
   await connection.query('DELETE FROM assignment_questions WHERE assignment_id = ?', [assignmentId]);
   let order = 1;
@@ -84,27 +92,40 @@ router.post('/', async (req, res) => {
   if (!grade_id && !course_id) {
     return res.status(400).json({ success: false, message: 'اختار الصف الدراسي أو الكورس' });
   }
+
+  const incomingQuestions = Array.isArray(questions) ? questions : [];
+  const deliveryMode = resolveDeliveryMode(req.body, incomingQuestions.length, file_url);
+
+  if (deliveryMode === 'pdf' && !String(file_url || '').trim()) {
+    return res.status(400).json({ success: false, message: 'ارفع ملف PDF للواجب' });
+  }
+  if (deliveryMode === 'manual' && !incomingQuestions.some((q) => String(q.question_text || '').trim())) {
+    return res.status(400).json({ success: false, message: 'أضف سؤال واحد على الأقل' });
+  }
+
+  const savedFileUrl = deliveryMode === 'pdf' ? (file_url || null) : null;
+  const savedQuestions = deliveryMode === 'manual' ? incomingQuestions : [];
+
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
     const [result] = await connection.query(
-      `INSERT INTO assignments (course_id, grade_id, title_ar, description_ar, image_url, file_url, due_date, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO assignments
+        (course_id, grade_id, title_ar, description_ar, image_url, file_url, due_date, status, delivery_mode)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         course_id || null,
         grade_id || null,
         title_ar,
         description_ar || null,
         image_url || null,
-        file_url || null,
+        savedFileUrl,
         due_date || null,
         status || 'published',
+        deliveryMode,
       ],
     );
-    const qCount = await replaceAssignmentQuestions(result.insertId, questions, connection);
-    if (!file_url && qCount === 0) {
-      throw new Error('أضف ملف PDF أو سؤال واحد على الأقل');
-    }
+    await replaceAssignmentQuestions(result.insertId, savedQuestions, connection);
     await connection.commit();
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) {
@@ -120,11 +141,26 @@ router.put('/:id', async (req, res) => {
   const {
     course_id, grade_id, title_ar, description_ar, image_url, file_url, due_date, status, questions,
   } = req.body;
+
+  const incomingQuestions = Array.isArray(questions) ? questions : [];
+  const deliveryMode = resolveDeliveryMode(req.body, incomingQuestions.length, file_url);
+
+  if (deliveryMode === 'pdf' && !String(file_url || '').trim()) {
+    return res.status(400).json({ success: false, message: 'ارفع ملف PDF للواجب' });
+  }
+  if (deliveryMode === 'manual' && !incomingQuestions.some((q) => String(q.question_text || '').trim())) {
+    return res.status(400).json({ success: false, message: 'أضف سؤال واحد على الأقل' });
+  }
+
+  const savedFileUrl = deliveryMode === 'pdf' ? (file_url || null) : null;
+  const savedQuestions = deliveryMode === 'manual' ? incomingQuestions : [];
+
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
     await connection.query(
-      `UPDATE assignments SET course_id=?, grade_id=?, title_ar=?, description_ar=?, image_url=?, file_url=?, due_date=?, status=?
+      `UPDATE assignments
+       SET course_id=?, grade_id=?, title_ar=?, description_ar=?, image_url=?, file_url=?, due_date=?, status=?, delivery_mode=?
        WHERE id=?`,
       [
         course_id || null,
@@ -132,16 +168,14 @@ router.put('/:id', async (req, res) => {
         title_ar,
         description_ar || null,
         image_url || null,
-        file_url || null,
+        savedFileUrl,
         due_date || null,
         status || 'published',
+        deliveryMode,
         req.params.id,
       ],
     );
-    const qCount = await replaceAssignmentQuestions(req.params.id, questions, connection);
-    if (!file_url && qCount === 0) {
-      throw new Error('أضف ملف PDF أو سؤال واحد على الأقل');
-    }
+    await replaceAssignmentQuestions(req.params.id, savedQuestions, connection);
     await connection.commit();
     res.json({ success: true });
   } catch (error) {

@@ -11,6 +11,14 @@ export async function uploadAdminFile(file, kind = 'image') {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      const path = window.location.pathname || '';
+      if (!path.includes('/login')) {
+        window.location.assign('/login');
+      }
+    }
     throw new Error(data.message || 'فشل رفع الملف');
   }
   return data.data.url;

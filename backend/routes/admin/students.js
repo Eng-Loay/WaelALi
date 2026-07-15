@@ -8,14 +8,22 @@ router.use(authAdmin);
 
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query(`
+    const courseId = req.query.course_id ? Number(req.query.course_id) : null;
+    let query = `
       SELECT s.id, s.name, s.email, s.phone, s.parent_phone, s.grade_id, s.created_at,
         g.name_ar AS grade_name,
         (SELECT COUNT(*) FROM enrollments e WHERE e.student_id = s.id) AS courses_count
       FROM students s
       LEFT JOIN grades g ON g.id = s.grade_id
-      ORDER BY s.created_at DESC
-    `);
+    `;
+    const params = [];
+    if (courseId) {
+      query += ` WHERE s.id IN (SELECT student_id FROM enrollments WHERE course_id = ?) `;
+      params.push(courseId);
+    }
+    query += ` ORDER BY s.created_at DESC `;
+
+    const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error(error);

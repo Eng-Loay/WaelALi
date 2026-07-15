@@ -2,9 +2,9 @@ import FileUploadField from './FileUploadField';
 import { IconPlus } from './DashboardIcons';
 
 const QUESTION_TYPES = [
-  { value: 'text', label: 'سؤال نصي' },
+  { value: 'text', label: 'مقالي' },
   { value: 'true_false', label: 'صح وغلط' },
-  { value: 'multiple_choice', label: 'اختيار من متعدد' },
+  { value: 'multiple_choice', label: 'اختيارات' },
 ];
 
 const emptyQuestion = () => ({
@@ -132,18 +132,18 @@ export default function QuestionsEditor({ questions, onChange, fileState, onFile
         <div>
           <h3>الأسئلة اليدوية</h3>
           <p className="dash-questions-editor__hint">
-            اختار نوع السؤال: نصي، صح وغلط، أو اختيار من متعدد — وحدد الإجابة الصحيحة
+            اختار نوع السؤال: مقالي، اختيارات، أو صح وغلط — وحدد الإجابة الصحيحة
           </p>
         </div>
         <button type="button" className="dash-btn dash-btn--primary dash-btn--sm" onClick={addQuestion}>
           <IconPlus />
-          إضافة سؤال
+          إضافة سؤال آخر
         </button>
       </div>
 
       {questions.length === 0 ? (
         <p className="dash-questions-editor__empty">
-          اضغط «إضافة سؤال» لبناء الأسئلة يدوياً
+          اضغط «إضافة سؤال آخر» لبناء الأسئلة يدوياً
         </p>
       ) : (
         questions.map((q, index) => (

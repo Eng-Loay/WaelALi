@@ -20,6 +20,23 @@ const KINDS = {
     maxSize: 25 * 1024 * 1024,
     mimes: ['application/pdf'],
   },
+  audio: {
+    dir: 'videos',
+    maxSize: 100 * 1024 * 1024,
+    mimes: [
+      'audio/mpeg',
+      'audio/mp3',
+      'audio/wav',
+      'audio/x-wav',
+      'audio/mp4',
+      'audio/m4a',
+      'audio/ogg',
+      'audio/webm',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime',
+    ],
+  },
 };
 
 Object.values(KINDS).forEach(({ dir }) => {

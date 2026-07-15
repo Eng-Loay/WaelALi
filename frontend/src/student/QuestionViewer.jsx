@@ -1,12 +1,14 @@
 const TYPE_LABELS = {
-  text: 'سؤال نصي',
+  text: 'مقالي',
   true_false: 'صح وغلط',
-  multiple_choice: 'اختيار من متعدد',
+  multiple_choice: 'اختيارات',
 };
 
-export default function QuestionViewer({ question, index }) {
+export default function QuestionViewer({ question, index, value = '', onChange, readOnly = false }) {
   const type = question.question_type || 'text';
   const options = Array.isArray(question.options) ? question.options : [];
+  const name = `q-${question.id || index}`;
+  const controlled = typeof onChange === 'function';
 
   return (
     <div className="student-question-item">
@@ -22,8 +24,30 @@ export default function QuestionViewer({ question, index }) {
 
       {type === 'true_false' && (
         <div className="student-answer-group">
-          <label><input type="radio" name={`q-${question.id || index}`} value="true" /> صح</label>
-          <label><input type="radio" name={`q-${question.id || index}`} value="false" /> غلط</label>
+          <label>
+            <input
+              type="radio"
+              name={name}
+              value="true"
+              disabled={readOnly}
+              {...(controlled
+                ? { checked: value === 'true', onChange: () => onChange('true') }
+                : {})}
+            />
+            صح
+          </label>
+          <label>
+            <input
+              type="radio"
+              name={name}
+              value="false"
+              disabled={readOnly}
+              {...(controlled
+                ? { checked: value === 'false', onChange: () => onChange('false') }
+                : {})}
+            />
+            غلط
+          </label>
         </div>
       )}
 
@@ -31,7 +55,15 @@ export default function QuestionViewer({ question, index }) {
         <div className="student-answer-group">
           {options.map((opt) => (
             <label key={opt}>
-              <input type="radio" name={`q-${question.id || index}`} value={opt} />
+              <input
+                type="radio"
+                name={name}
+                value={opt}
+                disabled={readOnly}
+                {...(controlled
+                  ? { checked: value === opt, onChange: () => onChange(opt) }
+                  : {})}
+              />
               {opt}
             </label>
           ))}
@@ -39,11 +71,23 @@ export default function QuestionViewer({ question, index }) {
       )}
 
       {type === 'text' && (
-        <input
-          type="text"
-          className="student-answer-input"
-          placeholder="اكتب إجابتك"
-        />
+        controlled ? (
+          <textarea
+            className="student-answer-input"
+            rows={3}
+            placeholder="اكتب إجابتك"
+            value={value}
+            disabled={readOnly}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        ) : (
+          <textarea
+            className="student-answer-input"
+            rows={3}
+            placeholder="اكتب إجابتك"
+            disabled={readOnly}
+          />
+        )
       )}
     </div>
   );

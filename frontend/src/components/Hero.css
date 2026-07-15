@@ -363,17 +363,17 @@
 
 .hero__visual-spark {
   position: absolute;
-  font-size: 1.1rem;
+  font-size: 1.85rem;
   font-weight: 700;
-  color: rgba(230, 57, 70, 0.35);
+  color: rgba(230, 57, 70, 0.4);
   animation: sparkFloat 6s ease-in-out infinite;
 }
 
 .hero__visual-spark--1 { top: 14%; left: 10%; animation-delay: 0s; }
-.hero__visual-spark--2 { top: 22%; right: 8%; animation-delay: -2s; color: rgba(29, 53, 87, 0.35); }
+.hero__visual-spark--2 { top: 22%; right: 8%; animation-delay: -2s; color: rgba(29, 53, 87, 0.4); }
 .hero__visual-spark--3 { bottom: 34%; left: 6%; animation-delay: -4s; }
-.hero__visual-spark--4 { top: 42%; right: 12%; animation-delay: -1.5s; font-size: 1.3rem; }
-.hero__visual-spark--5 { bottom: 42%; right: 14%; animation-delay: -3.5s; color: rgba(29, 53, 87, 0.4); }
+.hero__visual-spark--4 { top: 42%; right: 12%; animation-delay: -1.5s; font-size: 2.2rem; }
+.hero__visual-spark--5 { bottom: 42%; right: 14%; animation-delay: -3.5s; color: rgba(29, 53, 87, 0.45); }
 
 @keyframes sparkFloat {
   0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.4; }

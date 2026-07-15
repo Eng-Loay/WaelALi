@@ -18,6 +18,7 @@ export default function AdminCrudPage({
   showImport = false,
   onImport,
   extraRowActions,
+  renderActions,
 }) {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -258,25 +259,29 @@ export default function AdminCrudPage({
           columns={columns}
           rows={rows}
           loading={loading}
-          actions={(row) => (
-            <>
-              {extraRowActions?.(row)}
-              <button
-                type="button"
-                className="dash-btn dash-btn--outline dash-btn--sm"
-                onClick={() => onEdit(row)}
-              >
-                تعديل
-              </button>
-              <button
-                type="button"
-                className="dash-btn dash-btn--outline dash-btn--sm dash-btn--danger"
-                onClick={() => onDelete(row.id)}
-              >
-                حذف
-              </button>
-            </>
-          )}
+          actions={
+            renderActions
+              ? (row) => renderActions(row, onEdit, onDelete)
+              : (row) => (
+                  <>
+                    {extraRowActions?.(row)}
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--outline dash-btn--sm"
+                      onClick={() => onEdit(row)}
+                    >
+                      تعديل
+                    </button>
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--outline dash-btn--sm dash-btn--danger"
+                      onClick={() => onDelete(row.id)}
+                    >
+                      حذف
+                    </button>
+                  </>
+                )
+          }
         />
       </div>
 

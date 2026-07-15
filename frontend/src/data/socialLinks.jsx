@@ -8,7 +8,7 @@ export const SOCIAL_PLATFORMS = [
   {
     id: 'tiktok',
     label: 'TikTok',
-    href: 'https://www.tiktok.com/@mr.waelalimath',
+    href: '',
     brand: '#010101',
   },
   {

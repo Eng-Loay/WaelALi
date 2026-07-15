@@ -36,6 +36,7 @@ async function migrate() {
     ['courses', 'link_url', 'ALTER TABLE courses ADD COLUMN link_url VARCHAR(500) NULL AFTER pdf_url'],
     ['assignments', 'grade_id', 'ALTER TABLE assignments ADD COLUMN grade_id INT NULL AFTER course_id'],
     ['assignments', 'image_url', 'ALTER TABLE assignments ADD COLUMN image_url VARCHAR(500) NULL AFTER description_ar'],
+    ['assignments', 'delivery_mode', "ALTER TABLE assignments ADD COLUMN delivery_mode ENUM('pdf','manual') NOT NULL DEFAULT 'manual' AFTER status"],
     ['exams', 'grade_id', 'ALTER TABLE exams ADD COLUMN grade_id INT NULL AFTER course_id'],
     ['exams', 'image_url', 'ALTER TABLE exams ADD COLUMN image_url VARCHAR(500) NULL AFTER description_ar'],
     ['assignment_questions', 'question_type', "ALTER TABLE assignment_questions ADD COLUMN question_type ENUM('text','true_false','multiple_choice') NOT NULL DEFAULT 'text' AFTER question_text"],
@@ -68,6 +69,31 @@ async function migrate() {
   const sqlPath = path.join(__dirname, '..', 'database', 'content_features.sql');
   const raw = fs.readFileSync(sqlPath, 'utf8').replace(/USE [\w_]+;\s*/gi, '');
   await connection.query(raw);
+
+  if (!(await tableExists(connection, 'course_lessons'))) {
+    const lessonsSql = fs
+      .readFileSync(path.join(__dirname, '..', 'database', 'course_lessons.sql'), 'utf8')
+      .replace(/USE [\w_]+;\s*/gi, '');
+    await connection.query(lessonsSql);
+    console.log('Created course_lessons table');
+  }
+
+  if (!(await tableExists(connection, 'assignment_submissions'))) {
+    const deliverySql = fs
+      .readFileSync(path.join(__dirname, '..', 'database', 'assignment_delivery.sql'), 'utf8')
+      .replace(/USE [\w_]+;\s*/gi, '');
+    await connection.query(deliverySql);
+    console.log('Created assignment_submissions table');
+  }
+
+  // Backfill: rows with a PDF file become pdf mode
+  if (await columnExists(connection, 'assignments', 'delivery_mode')) {
+    await connection.query(`
+      UPDATE assignments
+      SET delivery_mode = 'pdf'
+      WHERE file_url IS NOT NULL AND file_url != ''
+    `);
+  }
 
   console.log('Content features migration complete.');
   await connection.end();

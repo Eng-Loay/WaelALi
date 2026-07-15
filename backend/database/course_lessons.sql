@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS course_lessons (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  section_id INT NOT NULL,
+  course_id INT NOT NULL,
+  title_ar VARCHAR(255) NOT NULL,
+  lesson_type ENUM('video', 'text', 'record', 'pdf', 'assignment', 'quiz') NOT NULL,
+  content_text TEXT NULL,
+  content_url VARCHAR(500) NULL,
+  assignment_id INT NULL,
+  exam_id INT NULL,
+  sort_order INT DEFAULT 0,
+  is_published BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (section_id) REFERENCES course_sections(id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE SET NULL,
+  FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE SET NULL,
+  INDEX idx_course_lessons_course (course_id),
+  INDEX idx_course_lessons_section (section_id)
+);

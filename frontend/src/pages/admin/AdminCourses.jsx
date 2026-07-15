@@ -43,8 +43,7 @@ export default function AdminCourses() {
           optionsKey: "grades",
           required: true,
         },
-        { key: "title_ar", label: "العنوان بالعربي", required: true },
-        { key: "title_en", label: "العنوان بالإنجليزي" },
+        { key: "title_ar", label: "العنوان", required: true, full: true },
         { key: "description_ar", label: "الوصف", type: "textarea", full: true },
         { key: "price", label: "السعر", type: "number" },
         { key: "lessons_count", label: "عدد الدروس", type: "number" },
@@ -54,7 +53,6 @@ export default function AdminCourses() {
           type: "file",
           uploadKind: "image",
           accept: "image/*",
-          required: true,
         },
         {
           key: "video_url",
@@ -79,51 +77,58 @@ export default function AdminCourses() {
         { key: "is_featured", label: "مميز", type: "checkbox" },
       ]}
       options={{ grades }}
-      extraRowActions={(row) => (
-        <Link
-          to={`/admin/courses/${row.id}/sections`}
-          className="dash-btn dash-btn--primary dash-btn--sm"
-        >
-          أجزاء الكورس
-        </Link>
+      renderActions={(row, onEdit, onDelete) => (
+        <>
+          <Link
+            to={`/admin/courses/${row.id}/content`}
+            className="dash-btn dash-btn--outline dash-btn--sm"
+          >
+            المحتوى
+          </Link>
+          <button
+            type="button"
+            className="dash-btn dash-btn--outline dash-btn--sm"
+            onClick={() => onEdit(row)}
+          >
+            تعديل
+          </button>
+          <Link
+            to={`/admin/subscribers?course_id=${row.id}`}
+            className="dash-btn dash-btn--outline dash-btn--sm"
+          >
+            الطلاب
+          </Link>
+          <button
+            type="button"
+            className="dash-btn dash-btn--danger-filled dash-btn--sm"
+            onClick={() => onDelete(row.id)}
+          >
+            حذف
+          </button>
+        </>
       )}
       columns={[
-        { key: "id", label: "#" },
-        { key: "title_ar", label: "العنوان" },
-        { key: "grade_name", label: "الصف" },
-        { key: "sections_count", label: "الأجزاء", render: (r) => r.sections_count ?? 0 },
-        { key: "price", label: "السعر", render: (r) => `${r.price} ج.م` },
         {
-          key: "image_url",
-          label: "الصورة",
-          render: (r) =>
-            r.image_url ? (
-              <img src={r.image_url} alt="" className="dash-table-thumb" />
-            ) : (
-              "—"
-            ),
+          key: "title_ar",
+          label: "العنوان",
         },
         {
-          key: "pdf_url",
-          label: "PDF",
-          render: (r) => (r.pdf_url ? fileLinkLabel(r.pdf_url) : "—"),
+          key: "grade_name",
+          label: "الصف",
         },
         {
-          key: "link_url",
-          label: "لينك",
-          render: (r) =>
-            r.link_url ? (
-              <a href={r.link_url} target="_blank" rel="noreferrer" className="dash-file-link">
-                فتح
-              </a>
-            ) : (
-              "—"
-            ),
+          key: "students_count",
+          label: "الطلاب",
+          render: (r) => r.students_count ?? 0,
         },
         {
-          key: "is_featured",
-          label: "مميز",
-          render: (r) => (r.is_featured ? "نعم" : "لا"),
+          key: "status",
+          label: "الحالة",
+          render: () => (
+            <span className="dash-badge--success" style={{ fontSize: "0.875rem" }}>
+              منشور
+            </span>
+          ),
         },
       ]}
     />

@@ -9,7 +9,8 @@ router.get("/", async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT c.*, g.name_ar AS grade_name,
-        (SELECT COUNT(*) FROM course_sections s WHERE s.course_id = c.id) AS sections_count
+        (SELECT COUNT(*) FROM course_sections s WHERE s.course_id = c.id) AS sections_count,
+        (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) AS students_count
       FROM courses c
       LEFT JOIN grades g ON g.id = c.grade_id
       ORDER BY c.created_at DESC

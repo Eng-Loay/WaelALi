@@ -1,7 +1,24 @@
 const API_BASE = '/api/student';
 
+let redirectingToLogin = false;
+
 function getToken() {
   return localStorage.getItem('student_token');
+}
+
+function clearStudentSession() {
+  localStorage.removeItem('student_token');
+  localStorage.removeItem('student_user');
+}
+
+function redirectToLoginOnce() {
+  if (redirectingToLogin) return;
+  if (typeof window === 'undefined') return;
+  const path = window.location.pathname || '';
+  if (path.includes('/login') || path.includes('/student/login')) return;
+  redirectingToLogin = true;
+  clearStudentSession();
+  window.location.assign('/login');
 }
 
 async function studentFetch(path, options = {}) {
@@ -14,7 +31,13 @@ async function studentFetch(path, options = {}) {
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || 'Request failed');
+  if (!res.ok) {
+    const isAuthCall = path.includes('/auth/login') || path.includes('/auth/register');
+    if (!isAuthCall && res.status === 401) {
+      redirectToLoginOnce();
+    }
+    throw new Error(data.message || 'Request failed');
+  }
   return data;
 }
 
@@ -27,6 +50,7 @@ function saveSession(result) {
 }
 
 export async function studentLogin(email, password) {
+  redirectingToLogin = false;
   return saveSession(await studentFetch('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
@@ -34,6 +58,7 @@ export async function studentLogin(email, password) {
 }
 
 export async function studentRegister(payload) {
+  redirectingToLogin = false;
   return saveSession(await studentFetch('/auth/register', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -41,8 +66,7 @@ export async function studentRegister(payload) {
 }
 
 export function studentLogout() {
-  localStorage.removeItem('student_token');
-  localStorage.removeItem('student_user');
+  clearStudentSession();
 }
 
 export function getStudentUser() {
@@ -86,6 +110,30 @@ export async function fetchStudentAssignments() {
 
 export async function fetchStudentAssignment(id) {
   return studentFetch(`/assignments/${id}`);
+}
+
+export async function submitStudentAssignment(id, body) {
+  return studentFetch(`/assignments/${id}/submit`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function uploadStudentFile(file, kind = 'pdf') {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = getToken();
+  const res = await fetch(`/api/student/upload/${kind}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 401) redirectToLoginOnce();
+    throw new Error(data.message || 'فشل رفع الملف');
+  }
+  return data.data.url;
 }
 
 export async function fetchStudentExams() {

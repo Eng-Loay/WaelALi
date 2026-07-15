@@ -29,13 +29,21 @@ router.post('/login', (req, res) => {
 router.get('/me', (req, res) => {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false });
+    return res.status(401).json({ success: false, message: 'انتهت الجلسة، سجّل دخولك مرة أخرى' });
   }
   try {
     const payload = verifyToken(header.slice(7));
-    res.json({ success: true, data: { user: payload } });
+    const user = {
+      id: payload.id,
+      email: payload.email,
+      name: payload.name,
+      role: payload.role || 'admin',
+    };
+    // Sliding session: issue a fresh token so deploys/restarts don't kick users after 24h
+    const accessToken = signToken(user);
+    res.json({ success: true, data: { user, accessToken } });
   } catch {
-    res.status(401).json({ success: false });
+    res.status(401).json({ success: false, message: 'انتهت الجلسة، سجّل دخولك مرة أخرى' });
   }
 });
 

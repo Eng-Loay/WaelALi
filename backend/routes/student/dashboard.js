@@ -133,7 +133,13 @@ router.patch('/courses/:courseId/progress', async (req, res) => {
 router.get('/assignments', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT a.*, c.title_ar AS course_title, g.name_ar AS grade_name
+      SELECT a.*, c.title_ar AS course_title, g.name_ar AS grade_name,
+        CASE
+          WHEN a.delivery_mode = 'pdf' THEN 'pdf'
+          WHEN a.delivery_mode = 'manual' THEN 'manual'
+          WHEN a.file_url IS NOT NULL AND a.file_url != '' THEN 'pdf'
+          ELSE 'manual'
+        END AS delivery_mode_resolved
       FROM assignments a
       LEFT JOIN courses c ON c.id = a.course_id
       LEFT JOIN grades g ON g.id = a.grade_id
@@ -147,7 +153,13 @@ router.get('/assignments', async (req, res) => {
         )
       ORDER BY a.due_date IS NULL, a.due_date ASC
     `, [req.student.id]);
-    res.json({ success: true, data: rows });
+    res.json({
+      success: true,
+      data: rows.map((r) => ({
+        ...r,
+        delivery_mode: r.delivery_mode_resolved || r.delivery_mode || 'manual',
+      })),
+    });
   } catch (error) {
     console.error(error);
     res.json({ success: true, data: [] });
@@ -171,14 +183,119 @@ router.get('/assignments/:id', async (req, res) => {
         )
     `, [req.student.id, req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, message: 'الواجب غير متاح' });
-    const [questions] = await pool.query(
-      'SELECT * FROM assignment_questions WHERE assignment_id = ? ORDER BY sort_order, id',
-      [req.params.id],
-    );
-    res.json({ success: true, data: { ...rows[0], questions: questions.map(formatQuestionRow) } });
+
+    const assignment = rows[0];
+    const mode = assignment.delivery_mode === 'pdf'
+      ? 'pdf'
+      : assignment.delivery_mode === 'manual'
+        ? 'manual'
+        : (assignment.file_url ? 'pdf' : 'manual');
+
+    let questions = [];
+    if (mode === 'manual') {
+      const [qRows] = await pool.query(
+        'SELECT * FROM assignment_questions WHERE assignment_id = ? ORDER BY sort_order, id',
+        [req.params.id],
+      );
+      questions = qRows.map(formatQuestionRow);
+    }
+
+    let submission = null;
+    try {
+      const [subs] = await pool.query(
+        `SELECT id, pdf_url, answers_json, submitted_at, updated_at
+         FROM assignment_submissions
+         WHERE assignment_id = ? AND student_id = ?
+         LIMIT 1`,
+        [req.params.id, req.student.id],
+      );
+      if (subs.length) {
+        const row = subs[0];
+        let answers = row.answers_json;
+        if (typeof answers === 'string') {
+          try { answers = JSON.parse(answers); } catch { answers = {}; }
+        }
+        submission = {
+          id: row.id,
+          pdf_url: row.pdf_url,
+          answers: answers && typeof answers === 'object' ? answers : {},
+          submitted_at: row.submitted_at,
+          updated_at: row.updated_at,
+        };
+      }
+    } catch {
+      submission = null;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...assignment,
+        delivery_mode: mode === 'pdf' ? 'pdf' : 'manual',
+        questions: mode === 'manual' ? questions : [],
+        file_url: mode === 'pdf' ? assignment.file_url : null,
+        submission,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'فشل تحميل الواجب' });
+  }
+});
+
+router.post('/assignments/:id/submit', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT a.*
+      FROM assignments a
+      JOIN students s ON s.id = ?
+      WHERE a.id = ? AND a.status = 'published'
+        AND (
+          (a.grade_id IS NOT NULL AND a.grade_id = s.grade_id)
+          OR (a.course_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.course_id = a.course_id
+          ))
+        )
+    `, [req.student.id, req.params.id]);
+    if (!rows.length) return res.status(404).json({ success: false, message: 'الواجب غير متاح' });
+
+    const assignment = rows[0];
+    const mode = assignment.delivery_mode === 'pdf'
+      ? 'pdf'
+      : assignment.delivery_mode === 'manual'
+        ? 'manual'
+        : (assignment.file_url ? 'pdf' : 'manual');
+
+    const { pdf_url, answers } = req.body || {};
+
+    if (mode === 'pdf') {
+      if (!String(pdf_url || '').trim()) {
+        return res.status(400).json({ success: false, message: 'ارفع ملف PDF الإجابة' });
+      }
+      await pool.query(
+        `INSERT INTO assignment_submissions (assignment_id, student_id, pdf_url, answers_json)
+         VALUES (?, ?, ?, NULL)
+         ON DUPLICATE KEY UPDATE pdf_url = VALUES(pdf_url), answers_json = NULL, updated_at = CURRENT_TIMESTAMP`,
+        [assignment.id, req.student.id, pdf_url],
+      );
+    } else {
+      const answersObj = answers && typeof answers === 'object' ? answers : {};
+      const answered = Object.values(answersObj).some((v) => String(v ?? '').trim() !== '');
+      if (!answered) {
+        return res.status(400).json({ success: false, message: 'أجب على الأسئلة قبل التسليم' });
+      }
+      await pool.query(
+        `INSERT INTO assignment_submissions (assignment_id, student_id, pdf_url, answers_json)
+         VALUES (?, ?, NULL, ?)
+         ON DUPLICATE KEY UPDATE answers_json = VALUES(answers_json), pdf_url = NULL, updated_at = CURRENT_TIMESTAMP`,
+        [assignment.id, req.student.id, JSON.stringify(answersObj)],
+      );
+    }
+
+    res.json({ success: true, message: 'تم تسليم الواجب بنجاح' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'فشل تسليم الواجب' });
   }
 });
 

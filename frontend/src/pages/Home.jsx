@@ -12,8 +12,8 @@ export default function Home() {
     <>
       <Navbar />
       <Hero />
-      <SubjectsSection />
       <Grades showViewAll />
+      <SubjectsSection />
       <CoursesSection showViewAll />
       <Features />
       <Testimonials />

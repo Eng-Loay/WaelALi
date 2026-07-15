@@ -12,6 +12,7 @@ const paymentsRouter = require('./payments');
 const bannersRouter = require('./banners');
 const notificationsRouter = require('./notifications');
 const uploadRouter = require('./upload');
+const courseContentRouter = require('./courseContent');
 
 const router = express.Router();
 
@@ -28,5 +29,6 @@ router.use('/payments', paymentsRouter);
 router.use('/banners', bannersRouter);
 router.use('/notifications', notificationsRouter);
 router.use('/upload', uploadRouter);
+router.use('/course-content', courseContentRouter);
 
 module.exports = router;

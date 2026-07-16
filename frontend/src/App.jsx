@@ -12,18 +12,24 @@ import AdminCourses from "./pages/admin/AdminCourses";
 import AdminCourseContent from "./pages/admin/AdminCourseContent";
 import AdminGrades from "./pages/admin/AdminGrades";
 import AdminSubscribers from "./pages/admin/AdminSubscribers";
+import AdminStudentDetail from "./pages/admin/AdminStudentDetail";
 import AdminCoupons from "./pages/admin/AdminCoupons";
 import AdminAssignments from "./pages/admin/AdminAssignments";
+import AdminAssignmentSubmissions from "./pages/admin/AdminAssignmentSubmissions";
 import AdminExams from "./pages/admin/AdminExams";
+import AdminExamResults from "./pages/admin/AdminExamResults";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminBanners from "./pages/admin/AdminBanners";
 import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminAttendance from "./pages/admin/AdminAttendance";
+import AdminAttendanceCourse from "./pages/admin/AdminAttendanceCourse";
 import UnifiedLogin from "./pages/UnifiedLogin";
 import StudentProtected from "./student/StudentProtected";
 import StudentLayout from "./student/StudentLayout";
 import StudentRegister from "./pages/student/StudentRegister";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentCourses from "./pages/student/StudentCourses";
+import StudentCourseView from "./pages/student/StudentCourseView";
 import StudentAssignments from "./pages/student/StudentAssignments";
 import StudentExams from "./pages/student/StudentExams";
 
@@ -60,6 +66,7 @@ export default function App() {
             />
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="courses" element={<StudentCourses />} />
+            <Route path="courses/:courseId" element={<StudentCourseView />} />
             <Route path="assignments" element={<StudentAssignments />} />
             <Route path="exams" element={<StudentExams />} />
           </Route>
@@ -74,10 +81,17 @@ export default function App() {
             <Route path="courses/:courseId/sections" element={<CourseSectionsRedirect />} />
             <Route path="grades" element={<AdminGrades />} />
             <Route path="assignments" element={<AdminAssignments />} />
+            <Route path="assignments/submissions" element={<AdminAssignmentSubmissions />} />
+            <Route path="assignments/:assignmentId/submissions" element={<AdminAssignmentSubmissions />} />
             <Route path="exams" element={<AdminExams />} />
+            <Route path="exams/results" element={<AdminExamResults />} />
+            <Route path="exams/:examId/results" element={<AdminExamResults />} />
             <Route path="coupons" element={<AdminCoupons />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="subscribers" element={<AdminSubscribers />} />
+            <Route path="students/:studentId" element={<AdminStudentDetail />} />
+            <Route path="attendance" element={<AdminAttendance />} />
+            <Route path="attendance/:courseId" element={<AdminAttendanceCourse />} />
             <Route path="banners" element={<AdminBanners />} />
             <Route path="notifications" element={<AdminNotifications />} />
           </Route>

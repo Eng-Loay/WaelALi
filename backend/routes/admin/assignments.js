@@ -52,7 +52,8 @@ router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT a.*, c.title_ar AS course_title, g.name_ar AS grade_name,
-        (SELECT COUNT(*) FROM assignment_questions q WHERE q.assignment_id = a.id) AS questions_count
+        (SELECT COUNT(*) FROM assignment_questions q WHERE q.assignment_id = a.id) AS questions_count,
+        (SELECT COUNT(*) FROM assignment_submissions s WHERE s.assignment_id = a.id) AS submissions_count
       FROM assignments a
       LEFT JOIN courses c ON c.id = a.course_id
       LEFT JOIN grades g ON g.id = a.grade_id
@@ -62,6 +63,65 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'فشل تحميل الواجبات' });
+  }
+});
+
+router.get('/:id/submissions', async (req, res) => {
+  try {
+    const [assignments] = await pool.query(
+      `SELECT a.id, a.title_ar, a.delivery_mode, a.file_url,
+              c.title_ar AS course_title, g.name_ar AS grade_name
+       FROM assignments a
+       LEFT JOIN courses c ON c.id = a.course_id
+       LEFT JOIN grades g ON g.id = a.grade_id
+       WHERE a.id = ?`,
+      [req.params.id],
+    );
+    if (!assignments.length) {
+      return res.status(404).json({ success: false, message: 'الواجب غير موجود' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT s.id, s.assignment_id, s.student_id, s.pdf_url, s.answers_json,
+        s.submitted_at, s.updated_at,
+        st.name AS student_name, st.email AS student_email,
+        a.title_ar AS assignment_title,
+        c.title_ar AS course_title,
+        g.name_ar AS grade_name
+       FROM assignment_submissions s
+       JOIN students st ON st.id = s.student_id
+       JOIN assignments a ON a.id = s.assignment_id
+       LEFT JOIN courses c ON c.id = a.course_id
+       LEFT JOIN grades g ON g.id = a.grade_id
+       WHERE s.assignment_id = ?
+       ORDER BY s.submitted_at DESC`,
+      [req.params.id],
+    );
+
+    const questions = await fetchQuestions(req.params.id);
+    const data = rows.map((row) => {
+      let answers = row.answers_json;
+      if (typeof answers === 'string') {
+        try { answers = JSON.parse(answers); } catch { answers = {}; }
+      }
+      return {
+        ...row,
+        answers: answers && typeof answers === 'object' ? answers : {},
+        answers_json: undefined,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        assignment: assignments[0],
+        questions,
+        submissions: data,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'فشل تحميل تسليمات الواجب' });
   }
 });
 

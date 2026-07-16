@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { AUTH_EVENT, unifiedLogout } from '../api/unifiedAuth';
 import {
   IconAssignments,
+  IconAttendance,
   IconBanners,
   IconBell,
   IconChevronDown,
@@ -40,6 +41,7 @@ const navGroups = [
     title: 'المستخدمون',
     items: [
       { title: 'المستخدمين', href: '/admin/subscribers', icon: IconUsers },
+      { title: 'حضور وغياب', href: '/admin/attendance', icon: IconAttendance },
     ],
   },
   {

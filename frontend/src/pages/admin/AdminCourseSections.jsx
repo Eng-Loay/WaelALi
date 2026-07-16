@@ -154,8 +154,17 @@ export default function AdminCourseSections() {
         />
       </div>
 
-      <AdminModal open={modalOpen} title={editingId ? 'تعديل جزء' : 'إضافة جزء'} onClose={() => setModalOpen(false)}>
-        <form className="admin-form admin-form--modal" onSubmit={onSubmit}>
+      <AdminModal
+        open={modalOpen}
+        title={editingId ? 'تعديل جزء' : 'إضافة جزء'}
+        onClose={() => setModalOpen(false)}
+        footer={(
+          <button type="submit" form="course-section-form" className="dash-btn dash-btn--primary" disabled={saving}>
+            {saving ? 'جاري الحفظ...' : 'حفظ'}
+          </button>
+        )}
+      >
+        <form id="course-section-form" className="admin-form admin-form--modal" onSubmit={onSubmit}>
           <div className="admin-form-grid">
             <label className="admin-form-full">
               عنوان الجزء
@@ -176,9 +185,6 @@ export default function AdminCourseSections() {
             <FileUploadField label="صورة الجزء" accept="image/*" uploadKind="image" value={form.image_url} file={files.image_url} onFileChange={(f) => setFiles((p) => ({ ...p, image_url: f }))} />
             <FileUploadField label="ملف PDF" accept="application/pdf,.pdf" uploadKind="pdf" value={form.pdf_url} file={files.pdf_url} onFileChange={(f) => setFiles((p) => ({ ...p, pdf_url: f }))} />
             <FileUploadField label="فيديو الجزء" accept="video/*" uploadKind="video" value={form.video_url} file={files.video_url} onFileChange={(f) => setFiles((p) => ({ ...p, video_url: f }))} />
-          </div>
-          <div className="admin-form-actions">
-            <button type="submit" className="dash-btn dash-btn--primary" disabled={saving}>{saving ? 'جاري الحفظ...' : 'حفظ'}</button>
           </div>
         </form>
       </AdminModal>

@@ -16,6 +16,7 @@ import {
   IconSun,
 } from '../admin/DashboardIcons';
 import '../admin/admin.css';
+import './student.css';
 
 const navGroups = [
   {
@@ -58,6 +59,16 @@ export default function StudentLayout() {
     window.dispatchEvent(new Event(AUTH_EVENT));
     navigate('/login');
   };
+
+  const isLearnPage = /\/student\/courses\/\d+\/?$/.test(location.pathname);
+
+  if (isLearnPage) {
+    return (
+      <div className={`dashboard-theme${dark ? ' dash-dark' : ''}`} dir="rtl">
+        <Outlet />
+      </div>
+    );
+  }
 
   return (
     <div className={`dashboard-theme dash-animate-in${dark ? ' dash-dark' : ''}`} dir="rtl">
@@ -182,10 +193,12 @@ export default function StudentLayout() {
           </header>
 
           <main className="dash-content">
-            <div className="dash-page-intro">
-              <h1>أهلاً، {user?.name || 'طالب'}</h1>
-              <p>تابع كورساتك وتقدمك من هنا</p>
-            </div>
+            {!location.pathname.match(/\/student\/courses\/\d+/) && (
+              <div className="dash-page-intro">
+                <h1>أهلاً، {user?.name || 'طالب'}</h1>
+                <p>تابع كورساتك وتقدمك من هنا</p>
+              </div>
+            )}
             <Outlet />
           </main>
         </div>

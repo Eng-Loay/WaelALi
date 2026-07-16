@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { adminResource } from '../../api/adminApi';
-import { fileLinkLabel, uploadAdminFile } from '../../api/uploadApi';
+import { uploadAdminFile } from '../../api/uploadApi';
 import AdminDataTable from '../../admin/AdminDataTable';
 import AdminModal from '../../admin/AdminModal';
 import FileUploadField from '../../admin/FileUploadField';
@@ -40,6 +41,7 @@ const emptyForm = {
 };
 
 export default function AdminAssignments() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [grades, setGrades] = useState([]);
   const [stage, setStage] = useState('');
@@ -126,6 +128,10 @@ export default function AdminAssignments() {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const openSubmissions = (row) => {
+    navigate(`/admin/assignments/${row.id}/submissions`);
   };
 
   const setDeliveryMode = (mode) => {
@@ -238,9 +244,9 @@ export default function AdminAssignments() {
               render: (r) => (r.delivery_mode === 'pdf' ? '—' : (r.questions_count || 0)),
             },
             {
-              key: 'file_url',
-              label: 'PDF',
-              render: (r) => (r.delivery_mode === 'pdf' && r.file_url ? fileLinkLabel(r.file_url) : '—'),
+              key: 'submissions_count',
+              label: 'تسليمات',
+              render: (r) => r.submissions_count || 0,
             },
             { key: 'due_date', label: 'التسليم', render: (r) => r.due_date || '—' },
             { key: 'status', label: 'الحالة' },
@@ -249,6 +255,9 @@ export default function AdminAssignments() {
           loading={loading}
           actions={(row) => (
             <>
+              <button type="button" className="dash-btn dash-btn--outline dash-btn--sm" onClick={() => openSubmissions(row)}>
+                التسليمات
+              </button>
               <button type="button" className="dash-btn dash-btn--outline dash-btn--sm" onClick={() => onEdit(row)}>تعديل</button>
               <button type="button" className="dash-btn dash-btn--outline dash-btn--sm dash-btn--danger" onClick={() => onDelete(row.id)}>حذف</button>
             </>
@@ -256,8 +265,18 @@ export default function AdminAssignments() {
         />
       </div>
 
-      <AdminModal open={modalOpen} wide title={editingId ? 'تعديل واجب' : 'إضافة واجب'} onClose={() => { setModalOpen(false); resetForm(); }}>
-        <form className="admin-form admin-form--modal" onSubmit={onSubmit}>
+      <AdminModal
+        open={modalOpen}
+        wide
+        title={editingId ? 'تعديل واجب' : 'إضافة واجب'}
+        onClose={() => { setModalOpen(false); resetForm(); }}
+        footer={(
+          <button type="submit" form="assignment-form" className="dash-btn dash-btn--primary" disabled={saving}>
+            {saving ? 'جاري الحفظ...' : 'حفظ'}
+          </button>
+        )}
+      >
+        <form id="assignment-form" className="admin-form admin-form--modal" onSubmit={onSubmit}>
           <div className="admin-form-grid">
             <div className="dash-form-section">
               <h3>بيانات الواجب</h3>
@@ -310,7 +329,7 @@ export default function AdminAssignments() {
             <div className="dash-form-section admin-form-full">
               <h3>طريقة الواجب</h3>
               <p className="dash-questions-editor__hint">
-                اختار طريقة واحدة واحدة: إما رفع PDF للطالب يرد عليه بـ PDF، أو أسئلة يدوية يجيب عليها داخل المنصة.
+                اختار طريقة واحدة: إما رفع PDF للطالب يرد عليه بـ PDF، أو أسئلة يدوية يجيب عليها داخل المنصة.
               </p>
               <div className="assignment-mode-toggle" role="group" aria-label="طريقة الواجب">
                 <button
@@ -348,9 +367,6 @@ export default function AdminAssignments() {
                 onFileChange={onQuestionFile}
               />
             )}
-          </div>
-          <div className="admin-form-actions">
-            <button type="submit" className="dash-btn dash-btn--primary" disabled={saving}>{saving ? 'جاري الحفظ...' : 'حفظ'}</button>
           </div>
         </form>
       </AdminModal>

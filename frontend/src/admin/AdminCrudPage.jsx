@@ -289,14 +289,11 @@ export default function AdminCrudPage({
         open={modalOpen}
         title={editingId ? `تعديل — ${title}` : `إضافة — ${title}`}
         onClose={closeModal}
-      >
-        <form className="admin-form admin-form--modal" onSubmit={onSubmit}>
-          <div className="admin-form-grid">
-            {fieldDefs.map((field) => renderField(field))}
-          </div>
-          <div className="admin-form-actions">
+        footer={(
+          <>
             <button
               type="submit"
+              form="admin-crud-form"
               className="dash-btn dash-btn--primary"
               disabled={saving}
             >
@@ -309,6 +306,12 @@ export default function AdminCrudPage({
             >
               إلغاء
             </button>
+          </>
+        )}
+      >
+        <form id="admin-crud-form" className="admin-form admin-form--modal" onSubmit={onSubmit}>
+          <div className="admin-form-grid">
+            {fieldDefs.map((field) => renderField(field))}
           </div>
         </form>
       </AdminModal>

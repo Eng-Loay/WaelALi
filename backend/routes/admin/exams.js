@@ -44,7 +44,8 @@ router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT e.*, c.title_ar AS course_title, g.name_ar AS grade_name,
-        (SELECT COUNT(*) FROM exam_questions q WHERE q.exam_id = e.id) AS manual_questions_count
+        (SELECT COUNT(*) FROM exam_questions q WHERE q.exam_id = e.id) AS manual_questions_count,
+        (SELECT COUNT(*) FROM exam_submissions s WHERE s.exam_id = e.id) AS submissions_count
       FROM exams e
       LEFT JOIN courses c ON c.id = e.course_id
       LEFT JOIN grades g ON g.id = e.grade_id
@@ -54,6 +55,77 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'فشل تحميل الاختبارات' });
+  }
+});
+
+router.get('/:id/results', async (req, res) => {
+  try {
+    const [exams] = await pool.query(
+      `SELECT e.id, e.title_ar, e.duration_minutes, e.questions_count,
+              c.title_ar AS course_title, g.name_ar AS grade_name
+       FROM exams e
+       LEFT JOIN courses c ON c.id = e.course_id
+       LEFT JOIN grades g ON g.id = e.grade_id
+       WHERE e.id = ?`,
+      [req.params.id],
+    );
+    if (!exams.length) {
+      return res.status(404).json({ success: false, message: 'الاختبار غير موجود' });
+    }
+
+    const questions = await fetchQuestions(req.params.id);
+    let rows = [];
+    try {
+      const [subs] = await pool.query(
+        `SELECT s.id, s.exam_id, s.student_id, s.answers_json, s.score, s.correct_count,
+          s.total_questions, s.submitted_at, s.updated_at,
+          st.name AS student_name, st.email AS student_email,
+          e.title_ar AS exam_title,
+          c.title_ar AS course_title,
+          g.name_ar AS grade_name
+         FROM exam_submissions s
+         JOIN students st ON st.id = s.student_id
+         JOIN exams e ON e.id = s.exam_id
+         LEFT JOIN courses c ON c.id = e.course_id
+         LEFT JOIN grades g ON g.id = e.grade_id
+         WHERE s.exam_id = ?
+         ORDER BY s.submitted_at DESC`,
+        [req.params.id],
+      );
+      rows = subs;
+    } catch {
+      rows = [];
+    }
+
+    const results = rows.map((row) => {
+      let answers = row.answers_json;
+      if (typeof answers === 'string') {
+        try { answers = JSON.parse(answers); } catch { answers = {}; }
+      }
+      return {
+        ...row,
+        answers: answers && typeof answers === 'object' ? answers : {},
+        answers_json: undefined,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        exam: exams[0],
+        questions,
+        results,
+        stats: {
+          total: results.length,
+          avgScore: results.length
+            ? Math.round(results.reduce((sum, r) => sum + Number(r.score || 0), 0) / results.length)
+            : 0,
+        },
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'فشل تحميل نتائج الاختبار' });
   }
 });
 
@@ -78,7 +150,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const {
-    course_id, grade_id, title_ar, description_ar, image_url, file_url,
+    course_id, grade_id, title_ar, description_ar, image_url,
     questions_count, duration_minutes, is_active, questions,
   } = req.body;
   if (!title_ar) return res.status(400).json({ success: false, message: 'عنوان الاختبار مطلوب' });
@@ -90,26 +162,23 @@ router.post('/', async (req, res) => {
     await connection.beginTransaction();
     const [result] = await connection.query(
       `INSERT INTO exams (course_id, grade_id, title_ar, description_ar, image_url, file_url, questions_count, duration_minutes, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
       [
         course_id || null,
         grade_id || null,
         title_ar,
         description_ar || null,
         image_url || null,
-        file_url || null,
         questions_count || 10,
         duration_minutes || 60,
         is_active !== false,
       ],
     );
     const qCount = await replaceExamQuestions(result.insertId, questions, connection);
-    if (!file_url && qCount === 0) {
-      throw new Error('أضف ملف PDF أو سؤال واحد على الأقل');
+    if (qCount === 0) {
+      throw new Error('أضف سؤال واحد على الأقل');
     }
-    if (qCount > 0) {
-      await connection.query('UPDATE exams SET questions_count = ? WHERE id = ?', [qCount, result.insertId]);
-    }
+    await connection.query('UPDATE exams SET questions_count = ? WHERE id = ?', [qCount, result.insertId]);
     await connection.commit();
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) {
@@ -123,16 +192,18 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const {
-    course_id, grade_id, title_ar, description_ar, image_url, file_url,
+    course_id, grade_id, title_ar, description_ar, image_url,
     questions_count, duration_minutes, is_active, questions,
   } = req.body;
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
     const qCount = await replaceExamQuestions(req.params.id, questions, connection);
-    const finalCount = qCount > 0 ? qCount : (questions_count || 10);
+    if (qCount === 0) {
+      throw new Error('أضف سؤال واحد على الأقل');
+    }
     await connection.query(
-      `UPDATE exams SET course_id=?, grade_id=?, title_ar=?, description_ar=?, image_url=?, file_url=?, questions_count=?, duration_minutes=?, is_active=?
+      `UPDATE exams SET course_id=?, grade_id=?, title_ar=?, description_ar=?, image_url=?, file_url=NULL, questions_count=?, duration_minutes=?, is_active=?
        WHERE id=?`,
       [
         course_id || null,
@@ -140,16 +211,12 @@ router.put('/:id', async (req, res) => {
         title_ar,
         description_ar || null,
         image_url || null,
-        file_url || null,
-        finalCount,
+        qCount,
         duration_minutes || 60,
         is_active !== false,
         req.params.id,
       ],
     );
-    if (!file_url && qCount === 0) {
-      throw new Error('أضف ملف PDF أو سؤال واحد على الأقل');
-    }
     await connection.commit();
     res.json({ success: true });
   } catch (error) {

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { adminResource } from '../../api/adminApi';
 import { uploadAdminFile } from '../../api/uploadApi';
 import AdminDataTable from '../../admin/AdminDataTable';
 import AdminModal from '../../admin/AdminModal';
-import FileUploadField from '../../admin/FileUploadField';
 import QuestionsEditor, { emptyQuestion } from '../../admin/QuestionsEditor';
 import StageGradeSelect from '../../admin/StageGradeSelect';
 import { getStageFromGradeId } from '../../admin/gradeHelpers';
@@ -32,21 +32,19 @@ const emptyForm = {
   course_id: '',
   title_ar: '',
   description_ar: '',
-  image_url: '',
-  file_url: '',
   questions_count: 10,
   duration_minutes: 60,
   is_active: true,
 };
 
 export default function AdminExams() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [grades, setGrades] = useState([]);
   const [stage, setStage] = useState('');
   const [courseOptions, setCourseOptions] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [questions, setQuestions] = useState([]);
-  const [files, setFiles] = useState({});
   const [questionFiles, setQuestionFiles] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -79,7 +77,6 @@ export default function AdminExams() {
   const resetForm = () => {
     setForm(emptyForm);
     setQuestions([]);
-    setFiles({});
     setQuestionFiles({});
     setEditingId(null);
     setStage('');
@@ -101,8 +98,6 @@ export default function AdminExams() {
         course_id: data.course_id ? String(data.course_id) : '',
         title_ar: data.title_ar || '',
         description_ar: data.description_ar || '',
-        image_url: data.image_url || '',
-        file_url: data.file_url || '',
         questions_count: data.questions_count || 10,
         duration_minutes: data.duration_minutes || 60,
         is_active: Boolean(data.is_active),
@@ -111,13 +106,16 @@ export default function AdminExams() {
       setQuestions((data.questions || []).length
         ? data.questions.map(normalizeLoadedQuestion)
         : [emptyQuestion()]);
-      setFiles({});
       setQuestionFiles({});
       setEditingId(row.id);
       setModalOpen(true);
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const openResults = (row) => {
+    navigate(`/admin/exams/${row.id}/results`);
   };
 
   const onQuestionFile = (scope, index, kind, file) => {
@@ -137,16 +135,20 @@ export default function AdminExams() {
         duration_minutes: Number(form.duration_minutes || 60),
         is_active: Boolean(form.is_active),
         questions: [...questions],
+        file_url: null,
       };
 
-      if (files.image_url) payload.image_url = await uploadAdminFile(files.image_url, 'image');
-      if (files.file_url) payload.file_url = await uploadAdminFile(files.file_url, 'pdf');
+      payload.image_url = null;
 
       for (let i = 0; i < payload.questions.length; i += 1) {
         const imgFile = questionFiles[`q${i}_image`];
         const pdfFile = questionFiles[`q${i}_pdf`];
         if (imgFile) payload.questions[i].image_url = await uploadAdminFile(imgFile, 'image');
         if (pdfFile) payload.questions[i].pdf_url = await uploadAdminFile(pdfFile, 'pdf');
+      }
+
+      if (!payload.questions.some((q) => String(q.question_text || '').trim())) {
+        throw new Error('أضف سؤال واحد على الأقل');
       }
 
       if (editingId) await examsApi.update(editingId, payload);
@@ -196,12 +198,20 @@ export default function AdminExams() {
             { key: 'course_title', label: 'الكورس', render: (r) => r.course_title || '—' },
             { key: 'questions_count', label: 'الأسئلة' },
             { key: 'duration_minutes', label: 'المدة' },
+            {
+              key: 'submissions_count',
+              label: 'نتائج',
+              render: (r) => r.submissions_count || 0,
+            },
             { key: 'is_active', label: 'الحالة', render: (r) => (r.is_active ? 'مفعل' : 'متوقف') },
           ]}
           rows={rows}
           loading={loading}
           actions={(row) => (
             <>
+              <button type="button" className="dash-btn dash-btn--outline dash-btn--sm" onClick={() => openResults(row)}>
+                النتائج
+              </button>
               <button type="button" className="dash-btn dash-btn--outline dash-btn--sm" onClick={() => onEdit(row)}>تعديل</button>
               <button type="button" className="dash-btn dash-btn--outline dash-btn--sm dash-btn--danger" onClick={() => onDelete(row.id)}>حذف</button>
             </>
@@ -209,8 +219,18 @@ export default function AdminExams() {
         />
       </div>
 
-      <AdminModal open={modalOpen} title={editingId ? 'تعديل اختبار' : 'إضافة اختبار'} onClose={() => { setModalOpen(false); resetForm(); }}>
-        <form className="admin-form admin-form--modal" onSubmit={onSubmit}>
+      <AdminModal
+        open={modalOpen}
+        wide
+        title={editingId ? 'تعديل اختبار' : 'إضافة اختبار'}
+        onClose={() => { setModalOpen(false); resetForm(); }}
+        footer={(
+          <button type="submit" form="exam-form" className="dash-btn dash-btn--primary" disabled={saving}>
+            {saving ? 'جاري الحفظ...' : 'حفظ'}
+          </button>
+        )}
+      >
+        <form id="exam-form" className="admin-form admin-form--modal" onSubmit={onSubmit}>
           <div className="admin-form-grid">
             <StageGradeSelect
               grades={grades}
@@ -234,12 +254,6 @@ export default function AdminExams() {
               الوصف
               <textarea rows={3} value={form.description_ar} onChange={(e) => setForm({ ...form, description_ar: e.target.value })} />
             </label>
-            <FileUploadField label="صورة الاختبار" accept="image/*" uploadKind="image" value={form.image_url} file={files.image_url} onFileChange={(f) => setFiles((p) => ({ ...p, image_url: f }))} />
-            <FileUploadField label="ملف الاختبار (PDF)" accept="application/pdf,.pdf" uploadKind="pdf" value={form.file_url} file={files.file_url} onFileChange={(f) => setFiles((p) => ({ ...p, file_url: f }))} />
-            <label>
-              عدد الأسئلة (تقديري)
-              <input type="number" value={form.questions_count} onChange={(e) => setForm({ ...form, questions_count: e.target.value })} />
-            </label>
             <label>
               المدة (دقيقة)
               <input type="number" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })} />
@@ -248,10 +262,13 @@ export default function AdminExams() {
               <input type="checkbox" checked={Boolean(form.is_active)} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
               {' '}مفعل
             </label>
+            <div className="dash-form-section admin-form-full">
+              <h3>أسئلة الاختبار</h3>
+              <p className="dash-questions-editor__hint">
+                الاختبارات أسئلة فقط داخل المنصة — بدون ملف PDF.
+              </p>
+            </div>
             <QuestionsEditor questions={questions} onChange={setQuestions} fileState={questionFiles} onFileChange={onQuestionFile} />
-          </div>
-          <div className="admin-form-actions">
-            <button type="submit" className="dash-btn dash-btn--primary" disabled={saving}>{saving ? 'جاري الحفظ...' : 'حفظ'}</button>
           </div>
         </form>
       </AdminModal>

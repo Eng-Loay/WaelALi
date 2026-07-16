@@ -156,6 +156,9 @@ router.post('/:courseId/lessons', async (req, res) => {
     questions,
     existing_exam_id,
     quizSource,
+    existing_assignment_id,
+    assignmentSource,
+    delivery_mode,
   } = req.body;
 
   const lessonTitle = String(title_ar || title || '').trim();
@@ -192,23 +195,79 @@ router.post('/:courseId/lessons', async (req, res) => {
     let storedUrl = content_url || null;
 
     if (type === 'assignment') {
-      const [asg] = await connection.query(
-        `INSERT INTO assignments (course_id, grade_id, title_ar, description_ar, image_url, file_url, due_date, status, delivery_mode)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'published', ?)`,
-        [
-          courseId,
-          course?.grade_id || null,
-          lessonTitle,
-          content_text || null,
-          null,
-          content_url || null,
-          due_date || null,
-          content_url ? 'pdf' : 'manual',
-        ],
-      );
-      assignmentId = asg.insertId;
-      storedText = content_text || null;
-      storedUrl = content_url || null;
+      if (assignmentSource === 'existing' && existing_assignment_id) {
+        const [asgs] = await connection.query(
+          'SELECT id, title_ar, description_ar, file_url FROM assignments WHERE id = ?',
+          [existing_assignment_id],
+        );
+        if (!asgs.length) {
+          await connection.rollback();
+          return res.status(404).json({ success: false, message: 'الواجب المحدد غير موجود' });
+        }
+        assignmentId = asgs[0].id;
+        storedText = asgs[0].description_ar || null;
+        storedUrl = asgs[0].file_url || null;
+      } else {
+        const qs = Array.isArray(questions) ? questions : [];
+        const mode = delivery_mode === 'manual' || (!content_url && qs.some((q) => String(q.question_text || '').trim()))
+          ? 'manual'
+          : 'pdf';
+
+        if (mode === 'pdf' && !String(content_url || '').trim()) {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: 'ارفع ملف PDF للواجب أو اختار واجب موجود' });
+        }
+        if (mode === 'manual' && !qs.some((q) => String(q.question_text || '').trim())) {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: 'أضف سؤال واحد على الأقل أو اختار واجب موجود' });
+        }
+
+        const [asg] = await connection.query(
+          `INSERT INTO assignments (course_id, grade_id, title_ar, description_ar, image_url, file_url, due_date, status, delivery_mode)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'published', ?)`,
+          [
+            courseId,
+            course?.grade_id || null,
+            lessonTitle,
+            content_text || null,
+            null,
+            mode === 'pdf' ? (content_url || null) : null,
+            due_date || null,
+            mode,
+          ],
+        );
+        assignmentId = asg.insertId;
+
+        if (mode === 'manual') {
+          let order = 1;
+          for (const raw of qs) {
+            const q = normalizeQuestionInput({
+              ...raw,
+              question_type: raw.question_type || 'text',
+            });
+            if (!q.question_text) continue;
+            await connection.query(
+              `INSERT INTO assignment_questions
+                (assignment_id, question_text, question_type, image_url, pdf_url, options, correct_answer, sort_order)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                assignmentId,
+                q.question_text,
+                q.question_type,
+                q.image_url,
+                q.pdf_url,
+                q.options,
+                q.correct_answer,
+                order,
+              ],
+            );
+            order += 1;
+          }
+        }
+
+        storedText = content_text || null;
+        storedUrl = mode === 'pdf' ? (content_url || null) : null;
+      }
     }
 
     if (type === 'quiz') {
@@ -221,9 +280,13 @@ router.post('/:courseId/lessons', async (req, res) => {
         examId = exams[0].id;
       } else {
         const qs = Array.isArray(questions) ? questions : [];
+        if (!qs.some((q) => String(q.question_text || '').trim())) {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: 'أضف سؤال واحد على الأقل أو اختار اختبار موجود' });
+        }
         const [ex] = await connection.query(
-          `INSERT INTO exams (course_id, grade_id, title_ar, description_ar, questions_count, duration_minutes, is_active)
-           VALUES (?, ?, ?, ?, ?, ?, 1)`,
+          `INSERT INTO exams (course_id, grade_id, title_ar, description_ar, file_url, questions_count, duration_minutes, is_active)
+           VALUES (?, ?, ?, ?, NULL, ?, ?, 1)`,
           [
             courseId,
             course?.grade_id || null,

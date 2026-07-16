@@ -28,6 +28,9 @@ function emptyLessonForm() {
     duration_minutes: 30,
     quizSource: 'new',
     existing_exam_id: '',
+    assignmentSource: 'new',
+    existing_assignment_id: '',
+    delivery_mode: 'pdf',
     questions: [emptyQuestion()],
     useUpload: true,
   };
@@ -44,6 +47,7 @@ export default function AdminCourseContent() {
   const [course, setCourse] = useState(null);
   const [sections, setSections] = useState([]);
   const [exams, setExams] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusText, setStatusText] = useState('سيتم الحفظ تلقائياً...');
@@ -64,13 +68,15 @@ export default function AdminCourseContent() {
     setLoading(true);
     setError('');
     try {
-      const [contentRes, examsRes] = await Promise.all([
+      const [contentRes, examsRes, assignmentsRes] = await Promise.all([
         adminFetch(`/course-content/${courseId}/content`),
         adminFetch('/exams').catch(() => ({ data: [] })),
+        adminFetch('/assignments').catch(() => ({ data: [] })),
       ]);
       setCourse(contentRes.data.course);
       setSections(contentRes.data.sections || []);
       setExams(examsRes.data || []);
+      setAssignments(assignmentsRes.data || []);
     } catch (err) {
       setError(err.message || 'فشل تحميل المحتوى');
     } finally {
@@ -85,6 +91,11 @@ export default function AdminCourseContent() {
   const courseExams = useMemo(
     () => exams.filter((e) => !e.course_id || String(e.course_id) === String(courseId)),
     [exams, courseId],
+  );
+
+  const courseAssignments = useMemo(
+    () => assignments.filter((a) => !a.course_id || String(a.course_id) === String(courseId)),
+    [assignments, courseId],
   );
 
   const addSection = async () => {
@@ -231,6 +242,9 @@ export default function AdminCourseContent() {
           duration_minutes: Number(lessonForm.duration_minutes) || 30,
           quizSource: lessonForm.quizSource,
           existing_exam_id: lessonForm.existing_exam_id || null,
+          assignmentSource: lessonForm.assignmentSource,
+          existing_assignment_id: lessonForm.existing_assignment_id || null,
+          delivery_mode: lessonForm.delivery_mode,
           questions: (
             await Promise.all(
               lessonForm.questions.map(async (q, index) => {
@@ -389,9 +403,14 @@ export default function AdminCourseContent() {
         open={Boolean(sectionModal)}
         title="تعديل اسم القسم"
         onClose={() => setSectionModal(null)}
+        footer={(
+          <button type="submit" form="section-rename-form" className="dash-btn dash-btn--primary" disabled={saving}>
+            {saving ? 'جاري الحفظ...' : 'حفظ'}
+          </button>
+        )}
       >
         {sectionModal && (
-          <form className="admin-form admin-form--modal" onSubmit={submitRenameSection}>
+          <form id="section-rename-form" className="admin-form admin-form--modal" onSubmit={submitRenameSection}>
             <label className="admin-form-full">
               عنوان القسم
               <input
@@ -400,11 +419,6 @@ export default function AdminCourseContent() {
                 required
               />
             </label>
-            <div className="admin-form-actions">
-              <button type="submit" className="dash-btn dash-btn--primary" disabled={saving}>
-                {saving ? 'جاري الحفظ...' : 'حفظ'}
-              </button>
-            </div>
           </form>
         )}
       </AdminModal>
@@ -417,17 +431,27 @@ export default function AdminCourseContent() {
             : `إضافة: ${modalTypeMeta?.label || ''}`
         }
         onClose={() => setLessonModal(null)}
-        wide={lessonModal?.type === 'quiz'}
+        wide={lessonModal?.type === 'quiz' || lessonModal?.type === 'assignment'}
+        footer={lessonModal ? (
+          <button type="submit" form="lesson-form" className="dash-btn dash-btn--primary" disabled={saving}>
+            {saving ? 'جاري الحفظ...' : 'حفظ'}
+          </button>
+        ) : null}
       >
         {lessonModal && (
-          <form className="admin-form admin-form--modal" onSubmit={submitLesson}>
+          <form id="lesson-form" className="admin-form admin-form--modal" onSubmit={submitLesson}>
             <div className="admin-form-grid">
               <label className="admin-form-full">
                 العنوان
                 <input
                   value={lessonForm.title}
                   onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))}
-                  required
+                  required={!(lessonModal.type === 'assignment' && lessonForm.assignmentSource === 'existing')
+                    && !(lessonModal.type === 'quiz' && lessonForm.quizSource === 'existing')}
+                  disabled={
+                    (lessonModal.type === 'assignment' && lessonForm.assignmentSource === 'existing')
+                    || (lessonModal.type === 'quiz' && lessonForm.quizSource === 'existing')
+                  }
                 />
               </label>
 
@@ -489,29 +513,105 @@ export default function AdminCourseContent() {
               {lessonModal.type === 'assignment' && lessonModal.mode === 'create' && (
                 <>
                   <label className="admin-form-full">
-                    وصف الواجب
-                    <textarea
-                      rows={4}
-                      value={lessonForm.content_text}
-                      onChange={(e) => setLessonForm((p) => ({ ...p, content_text: e.target.value }))}
-                    />
+                    مصدر الواجب
+                    <select
+                      value={lessonForm.assignmentSource}
+                      onChange={(e) => setLessonForm((p) => ({
+                        ...p,
+                        assignmentSource: e.target.value,
+                        title: e.target.value === 'existing' ? p.title : p.title,
+                      }))}
+                    >
+                      <option value="new">إنشاء واجب جديد</option>
+                      <option value="existing">اختيار من الواجبات الموجودة</option>
+                    </select>
                   </label>
-                  <label>
-                    موعد التسليم
-                    <input
-                      type="date"
-                      value={lessonForm.due_date}
-                      onChange={(e) => setLessonForm((p) => ({ ...p, due_date: e.target.value }))}
-                    />
-                  </label>
-                  <FileUploadField
-                    label="مرفق (اختياري)"
-                    accept="application/pdf,.pdf,image/*"
-                    uploadKind="pdf"
-                    value={lessonForm.content_url}
-                    file={lessonFile}
-                    onFileChange={setLessonFile}
-                  />
+
+                  {lessonForm.assignmentSource === 'existing' ? (
+                    <label className="admin-form-full">
+                      اختار واجب
+                      <select
+                        value={lessonForm.existing_assignment_id}
+                        onChange={(e) => {
+                          const chosen = courseAssignments.find((a) => String(a.id) === e.target.value);
+                          setLessonForm((p) => ({
+                            ...p,
+                            existing_assignment_id: e.target.value,
+                            title: chosen?.title_ar || p.title,
+                          }));
+                        }}
+                        required
+                      >
+                        <option value="">—</option>
+                        {courseAssignments.map((asg) => (
+                          <option key={asg.id} value={asg.id}>
+                            {asg.title_ar}
+                            {asg.delivery_mode === 'pdf' ? ' (PDF)' : ' (أسئلة)'}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <>
+                      <label className="admin-form-full">
+                        وصف الواجب
+                        <textarea
+                          rows={3}
+                          value={lessonForm.content_text}
+                          onChange={(e) => setLessonForm((p) => ({ ...p, content_text: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        موعد التسليم
+                        <input
+                          type="date"
+                          value={lessonForm.due_date}
+                          onChange={(e) => setLessonForm((p) => ({ ...p, due_date: e.target.value }))}
+                        />
+                      </label>
+                      <div className="dash-form-section admin-form-full">
+                        <h3>طريقة الواجب</h3>
+                        <div className="assignment-mode-toggle" role="group" aria-label="طريقة الواجب">
+                          <button
+                            type="button"
+                            className={`assignment-mode-toggle__btn${lessonForm.delivery_mode === 'pdf' ? ' is-active' : ''}`}
+                            onClick={() => setLessonForm((p) => ({ ...p, delivery_mode: 'pdf', questions: [] }))}
+                          >
+                            رفع PDF
+                          </button>
+                          <button
+                            type="button"
+                            className={`assignment-mode-toggle__btn${lessonForm.delivery_mode === 'manual' ? ' is-active' : ''}`}
+                            onClick={() => setLessonForm((p) => ({
+                              ...p,
+                              delivery_mode: 'manual',
+                              questions: p.questions?.length ? p.questions : [emptyQuestion()],
+                            }))}
+                          >
+                            أسئلة يدوية
+                          </button>
+                        </div>
+                      </div>
+                      {lessonForm.delivery_mode === 'pdf' ? (
+                        <FileUploadField
+                          label="ملف الواجب (PDF)"
+                          accept="application/pdf,.pdf"
+                          uploadKind="pdf"
+                          value={lessonForm.content_url}
+                          file={lessonFile}
+                          onFileChange={setLessonFile}
+                          required={!lessonForm.content_url}
+                        />
+                      ) : (
+                        <QuestionsEditor
+                          questions={lessonForm.questions}
+                          onChange={(questions) => setLessonForm((p) => ({ ...p, questions }))}
+                          fileState={questionFiles}
+                          onFileChange={onQuestionFileChange}
+                        />
+                      )}
+                    </>
+                  )}
                 </>
               )}
 
@@ -524,7 +624,7 @@ export default function AdminCourseContent() {
                       onChange={(e) => setLessonForm((p) => ({ ...p, quizSource: e.target.value }))}
                     >
                       <option value="new">إنشاء اختبار جديد</option>
-                      <option value="existing">ربط باختبار موجود</option>
+                      <option value="existing">اختيار من الاختبارات الموجودة</option>
                     </select>
                   </label>
 
@@ -533,7 +633,14 @@ export default function AdminCourseContent() {
                       اختار اختبار
                       <select
                         value={lessonForm.existing_exam_id}
-                        onChange={(e) => setLessonForm((p) => ({ ...p, existing_exam_id: e.target.value }))}
+                        onChange={(e) => {
+                          const chosen = courseExams.find((exam) => String(exam.id) === e.target.value);
+                          setLessonForm((p) => ({
+                            ...p,
+                            existing_exam_id: e.target.value,
+                            title: chosen?.title_ar || p.title,
+                          }));
+                        }}
                         required
                       >
                         <option value="">—</option>
@@ -573,6 +680,12 @@ export default function AdminCourseContent() {
               )}
 
               {lessonModal.mode === 'edit' && lessonModal.type === 'assignment' && (
+                <p className="admin-form-full" style={{ color: '#64748b' }}>
+                  لتعديل محتوى الواجب (PDF أو الأسئلة) استخدم صفحة الواجبات في لوحة التحكم.
+                </p>
+              )}
+
+              {lessonModal.mode === 'edit' && lessonModal.type === 'assignment' && (
                 <label className="admin-form-full">
                   الوصف
                   <textarea
@@ -582,12 +695,6 @@ export default function AdminCourseContent() {
                   />
                 </label>
               )}
-            </div>
-
-            <div className="admin-form-actions">
-              <button type="submit" className="dash-btn dash-btn--primary" disabled={saving}>
-                {saving ? 'جاري الحفظ...' : 'حفظ'}
-              </button>
             </div>
           </form>
         )}

@@ -88,8 +88,15 @@ export default function StudentAssignments() {
   if (loading) return <div className="student-loading">جاري التحميل...</div>;
 
   return (
-    <div className="student-panel">
-      <h2>واجباتي</h2>
+    <div className="student-page">
+      <section className="dash-panel student-panel">
+        <div className="student-panel__head">
+          <div>
+            <h2>واجباتي</h2>
+            <p>كل الواجبات المطلوبة منك</p>
+          </div>
+          <span className="student-panel__badge">{rows.length} واجب</span>
+        </div>
       {error && !selected && <div className="student-alert">{error}</div>}
       {rows.length === 0 ? (
         <p className="student-empty">مفيش واجبات لصفّك حالياً</p>
@@ -186,12 +193,13 @@ export default function StudentAssignments() {
               </div>
             )}
 
-            <button type="submit" className="student-btn" disabled={saving}>
+            <button type="submit" className="student-btn student-btn--primary" disabled={saving}>
               {saving ? 'جاري التسليم...' : selected.submission ? 'تحديث التسليم' : 'تسليم الواجب'}
             </button>
           </form>
         </div>
       )}
+      </section>
     </div>
   );
 }

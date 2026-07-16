@@ -9,3 +9,15 @@ scripts/deploy_explore*.py
 scripts/deploy_check.py
 scripts/deploy_to_server.py
 scripts/verify_*.py
+scripts/check_*.py
+scripts/create_wael_test_student.py
+scripts/find_student_with_video.py
+scripts/inspect_wael_student.py
+scripts/prep_test_student.py
+scripts/spark_*.py
+scripts/extract_*.py
+scripts/analyze_spark*.py
+scripts/explore_spark*.py
+scripts/spark_extract/
+frontend/NUL
+**/NUL

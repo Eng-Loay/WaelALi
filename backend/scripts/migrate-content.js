@@ -86,6 +86,30 @@ async function migrate() {
     console.log('Created assignment_submissions table');
   }
 
+  if (!(await tableExists(connection, 'student_activity'))) {
+    const activitySql = fs
+      .readFileSync(path.join(__dirname, '..', 'database', 'student_activity.sql'), 'utf8')
+      .replace(/USE [\w_]+;\s*/gi, '');
+    await connection.query(activitySql);
+    console.log('Created student_activity table');
+  }
+
+  if (!(await tableExists(connection, 'course_attendance'))) {
+    const attendanceSql = fs
+      .readFileSync(path.join(__dirname, '..', 'database', 'course_attendance.sql'), 'utf8')
+      .replace(/USE [\w_]+;\s*/gi, '');
+    await connection.query(attendanceSql);
+    console.log('Created course_attendance table');
+  }
+
+  if (!(await tableExists(connection, 'exam_submissions'))) {
+    const examSubsSql = fs
+      .readFileSync(path.join(__dirname, '..', 'database', 'exam_submissions.sql'), 'utf8')
+      .replace(/USE [\w_]+;\s*/gi, '');
+    await connection.query(examSubsSql);
+    console.log('Created exam_submissions table');
+  }
+
   // Backfill: rows with a PDF file become pdf mode
   if (await columnExists(connection, 'assignments', 'delivery_mode')) {
     await connection.query(`

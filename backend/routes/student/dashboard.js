@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../../config/db');
 const authStudent = require('../../middleware/authStudent');
 const { formatQuestionRow } = require('../../utils/questionHelpers');
+const { logStudentActivity } = require('../../utils/studentActivity');
 
 const router = express.Router();
 router.use(authStudent);
@@ -71,14 +72,22 @@ router.get('/overview', async (req, res) => {
 router.get('/courses', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT c.*, g.name_ar AS grade_name, e.progress, e.status, e.enrolled_at
+      SELECT c.*, g.name_ar AS grade_name, e.progress, e.status, e.enrolled_at,
+        (SELECT COUNT(*) FROM course_lessons cl
+         WHERE cl.course_id = c.id AND cl.is_published = 1) AS published_lessons
       FROM enrollments e
       JOIN courses c ON c.id = e.course_id
       LEFT JOIN grades g ON g.id = c.grade_id
       WHERE e.student_id = ?
       ORDER BY e.enrolled_at DESC
     `, [req.student.id]);
-    res.json({ success: true, data: rows });
+    res.json({
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        lessons_count: Number(row.published_lessons) || 0,
+      })),
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'فشل تحميل كورساتك' });
@@ -118,11 +127,19 @@ router.post('/enroll/:courseId', async (req, res) => {
 router.patch('/courses/:courseId/progress', async (req, res) => {
   const progress = Math.max(0, Math.min(100, Number(req.body.progress) || 0));
   const status = progress >= 100 ? 'completed' : 'active';
+  const courseId = Number(req.params.courseId);
   try {
     await pool.query(
       `UPDATE enrollments SET progress = ?, status = ? WHERE student_id = ? AND course_id = ?`,
-      [progress, status, req.student.id, req.params.courseId],
+      [progress, status, req.student.id, courseId],
     );
+    const [courses] = await pool.query('SELECT title_ar FROM courses WHERE id = ?', [courseId]);
+    await logStudentActivity({
+      studentId: req.student.id,
+      courseId,
+      activityType: 'course_progress',
+      titleAr: courses[0]?.title_ar ? `${courses[0].title_ar} — ${progress}%` : `${progress}%`,
+    });
     res.json({ success: true });
   } catch (error) {
     console.error(error);
@@ -292,6 +309,15 @@ router.post('/assignments/:id/submit', async (req, res) => {
       );
     }
 
+    if (assignment.course_id) {
+      await logStudentActivity({
+        studentId: req.student.id,
+        courseId: assignment.course_id,
+        activityType: 'submit_assignment',
+        titleAr: assignment.title_ar,
+      });
+    }
+
     res.json({ success: true, message: 'تم تسليم الواجب بنجاح' });
   } catch (error) {
     console.error(error);
@@ -344,10 +370,130 @@ router.get('/exams/:id', async (req, res) => {
       'SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY sort_order, id',
       [req.params.id],
     );
-    res.json({ success: true, data: { ...rows[0], questions: questions.map(formatQuestionRow) } });
+
+    let submission = null;
+    try {
+      const [subs] = await pool.query(
+        `SELECT id, answers_json, score, correct_count, total_questions, submitted_at, updated_at
+         FROM exam_submissions
+         WHERE exam_id = ? AND student_id = ?
+         LIMIT 1`,
+        [req.params.id, req.student.id],
+      );
+      if (subs.length) {
+        const row = subs[0];
+        let answers = row.answers_json;
+        if (typeof answers === 'string') {
+          try { answers = JSON.parse(answers); } catch { answers = {}; }
+        }
+        submission = {
+          id: row.id,
+          answers: answers && typeof answers === 'object' ? answers : {},
+          score: row.score,
+          correct_count: row.correct_count,
+          total_questions: row.total_questions,
+          submitted_at: row.submitted_at,
+          updated_at: row.updated_at,
+        };
+      }
+    } catch {
+      submission = null;
+    }
+
+    const safeQuestions = questions.map((q) => {
+      const formatted = formatQuestionRow(q);
+      if (!submission) {
+        const { correct_answer, ...rest } = formatted;
+        return rest;
+      }
+      return formatted;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...rows[0],
+        file_url: null,
+        questions: safeQuestions,
+        submission,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'فشل تحميل الاختبار' });
+  }
+});
+
+router.post('/exams/:id/submit', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT x.*
+      FROM exams x
+      JOIN students s ON s.id = ?
+      WHERE x.id = ? AND x.is_active = TRUE
+        AND (
+          (x.grade_id IS NOT NULL AND x.grade_id = s.grade_id)
+          OR (x.course_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM enrollments e WHERE e.student_id = s.id AND e.course_id = x.course_id
+          ))
+        )
+    `, [req.student.id, req.params.id]);
+    if (!rows.length) return res.status(404).json({ success: false, message: 'الاختبار غير متاح' });
+
+    const exam = rows[0];
+    const answersObj = req.body?.answers && typeof req.body.answers === 'object' ? req.body.answers : {};
+    const answered = Object.values(answersObj).some((v) => String(v ?? '').trim() !== '');
+    if (!answered) {
+      return res.status(400).json({ success: false, message: 'أجب على الأسئلة قبل التسليم' });
+    }
+
+    const [questions] = await pool.query(
+      'SELECT * FROM exam_questions WHERE exam_id = ? ORDER BY sort_order, id',
+      [req.params.id],
+    );
+    if (!questions.length) {
+      return res.status(400).json({ success: false, message: 'الاختبار بدون أسئلة' });
+    }
+
+    let correctCount = 0;
+    for (const q of questions) {
+      const studentAnswer = String(answersObj[String(q.id)] ?? '').trim().toLowerCase();
+      const correct = String(q.correct_answer ?? '').trim().toLowerCase();
+      if (!correct) continue;
+      if (studentAnswer && studentAnswer === correct) correctCount += 1;
+    }
+    const total = questions.length;
+    const score = total ? Math.round((correctCount / total) * 10000) / 100 : 0;
+
+    await pool.query(
+      `INSERT INTO exam_submissions (exam_id, student_id, answers_json, score, correct_count, total_questions)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         answers_json = VALUES(answers_json),
+         score = VALUES(score),
+         correct_count = VALUES(correct_count),
+         total_questions = VALUES(total_questions),
+         updated_at = CURRENT_TIMESTAMP`,
+      [exam.id, req.student.id, JSON.stringify(answersObj), score, correctCount, total],
+    );
+
+    if (exam.course_id) {
+      await logStudentActivity({
+        studentId: req.student.id,
+        courseId: exam.course_id,
+        activityType: 'open_exam',
+        titleAr: exam.title_ar,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'تم تسليم الاختبار بنجاح',
+      data: { score, correct_count: correctCount, total_questions: total },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'فشل تسليم الاختبار' });
   }
 });
 

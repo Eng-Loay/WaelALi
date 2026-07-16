@@ -34,7 +34,7 @@ async function run() {
     console.log('Database already initialized, running migrations only...');
   }
 
-  const migrationFiles = ['admin_features.sql', 'student_features.sql', 'upload_fields.sql', 'content_features.sql', 'course_lessons.sql', 'assignment_delivery.sql'];
+  const migrationFiles = ['admin_features.sql', 'student_features.sql', 'upload_fields.sql', 'content_features.sql', 'course_lessons.sql', 'assignment_delivery.sql', 'student_activity.sql', 'course_attendance.sql', 'exam_submissions.sql'];
   for (const file of migrationFiles) {
     const full = path.join(base, file);
     if (!fs.existsSync(full)) continue;

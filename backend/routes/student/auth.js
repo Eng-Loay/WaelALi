@@ -48,21 +48,7 @@ router.post('/register', async (req, res) => {
       ],
     );
 
-    // Auto-enroll featured courses for the selected grade (or all featured)
-    if (grade_id) {
-      await pool.query(
-        `INSERT IGNORE INTO enrollments (student_id, course_id, progress, status)
-         SELECT ?, id, 0, 'active' FROM courses WHERE grade_id = ?`,
-        [result.insertId, grade_id],
-      );
-    } else {
-      await pool.query(
-        `INSERT IGNORE INTO enrollments (student_id, course_id, progress, status)
-         SELECT ?, id, FLOOR(RAND()*40), 'active' FROM courses WHERE is_featured = TRUE LIMIT 3`,
-        [result.insertId],
-      );
-    }
-
+    // Registration does not auto-enroll — student (or admin) picks courses later
     const user = {
       id: result.insertId,
       name,

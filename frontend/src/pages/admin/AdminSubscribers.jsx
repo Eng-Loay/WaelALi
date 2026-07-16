@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { adminResource } from '../../api/adminApi';
 import {
   createAdminStudent,
@@ -9,6 +9,7 @@ import {
 } from '../../api/adminApi';
 import AdminDataTable, { DashBadge } from '../../admin/AdminDataTable';
 import AdminModal from '../../admin/AdminModal';
+import DashSelect from '../../admin/DashSelect';
 import StageGradeSelect from '../../admin/StageGradeSelect';
 import { IconPlus } from '../../admin/DashboardIcons';
 
@@ -26,7 +27,8 @@ const emptyStudentForm = {
 };
 
 export default function AdminSubscribers() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const filterCourseId = searchParams.get('course_id');
 
   const [rows, setRows] = useState([]);
@@ -154,43 +156,67 @@ export default function AdminSubscribers() {
 
   const filteredCourse = courses.find((c) => String(c.id) === filterCourseId);
 
+  const onCourseFilterChange = (value) => {
+    if (value) {
+      setSearchParams({ course_id: value });
+    } else {
+      setSearchParams({});
+    }
+  };
+
   return (
-    <div className="dash-page">
-      <div className="dash-toolbar">
-        <div className="dash-toolbar__actions">
-          <button type="button" className="dash-btn dash-btn--primary" onClick={openAddModal}>
-            <IconPlus />
-            إضافة طالب
-          </button>
-          <button type="button" className="dash-btn dash-btn--outline" onClick={openEnrollModal}>
-            إضافة طالب لدورة
-          </button>
-          {filterCourseId && (
-            <Link to="/admin/subscribers" className="dash-btn dash-btn--outline">
-              عرض كل الطلاب
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {filterCourseId && filteredCourse && (
-        <div className="admin-alert success" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>
-            عرض الطلاب المسجلين في كورس: <strong>{filteredCourse.title_ar} {filteredCourse.title_en ? `(${filteredCourse.title_en})` : ''}</strong>
-          </span>
-          <Link to="/admin/subscribers" style={{ color: 'var(--dash-navy)', fontWeight: 'bold', textDecoration: 'none' }}>
-            إلغاء الفلترة ✕
-          </Link>
-        </div>
-      )}
-
+    <div className="dash-page students-page">
       {error && !addOpen && !enrollOpen && <div className="admin-alert error">{error}</div>}
       {success && <div className="admin-alert success">{success}</div>}
 
-      <div className="dash-panel dash-panel--table">
-        <div className="dash-panel__head">
-          <h2>{filterCourseId && filteredCourse ? `الطلاب — ${filteredCourse.title_ar}` : 'الطلاب'}</h2>
-          <span>{rows.length} طالب</span>
+      <div className="dash-panel dash-panel--table students-panel">
+        <div className="students-panel__head">
+          <div className="students-panel__head-main">
+            <div className="students-panel__intro">
+              <div className="students-panel__title-row">
+                <h2>الطلاب</h2>
+                <span className="students-panel__count">{rows.length} طالب</span>
+              </div>
+              {filterCourseId && filteredCourse ? (
+                <p className="students-panel__subtitle">
+                  عرض طلاب دورة: <strong>{filteredCourse.title_ar}</strong>
+                </p>
+              ) : (
+                <p className="students-panel__subtitle">إدارة الطلاب المسجّلين على المنصة</p>
+              )}
+            </div>
+
+            <div className="students-panel__actions">
+              <button type="button" className="dash-btn dash-btn--primary" onClick={openAddModal}>
+                <IconPlus />
+                إضافة طالب
+              </button>
+              <button type="button" className="dash-btn dash-btn--outline" onClick={openEnrollModal}>
+                إضافة لدورة
+              </button>
+            </div>
+          </div>
+
+          <div className="students-panel__head-filter">
+            <DashSelect
+              className="students-panel__filter"
+              label="فلتر بالدورة"
+              value={filterCourseId || ''}
+              onChange={(e) => onCourseFilterChange(e.target.value)}
+              options={[
+                { value: '', label: 'كل الطلاب' },
+                ...courses.map((course) => ({
+                  value: String(course.id),
+                  label: course.title_ar,
+                })),
+              ]}
+            />
+            {filterCourseId && (
+              <Link to="/admin/subscribers" className="students-panel__clear-filter">
+                إلغاء الفلتر
+              </Link>
+            )}
+          </div>
         </div>
 
         <AdminDataTable
@@ -202,6 +228,31 @@ export default function AdminSubscribers() {
             { key: 'email', label: 'البريد' },
             { key: 'grade_name', label: 'الصف', render: (r) => r.grade_name || '—' },
             { key: 'courses_count', label: 'الدورات' },
+            ...(filterCourseId ? [
+              {
+                key: 'course_progress',
+                label: 'تقدم الدورة',
+                render: (r) => `${r.course_progress || 0}%`,
+              },
+              {
+                key: 'attendance_label',
+                label: 'الحضور',
+                render: (r) => (
+                  <DashBadge
+                    active={r.attendance === 'present'}
+                    activeLabel="حاضر"
+                    inactiveLabel="غائب"
+                  />
+                ),
+              },
+              {
+                key: 'last_activity_at',
+                label: 'آخر نشاط',
+                render: (r) => (r.last_activity_at
+                  ? new Date(r.last_activity_at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })
+                  : '—'),
+              },
+            ] : []),
             { key: 'phone', label: 'الموبايل', render: (r) => r.phone || '—' },
             {
               key: 'status',
@@ -209,6 +260,15 @@ export default function AdminSubscribers() {
               render: () => <DashBadge active />,
             },
           ]}
+          actions={(row) => (
+            <button
+              type="button"
+              className="dash-btn dash-btn--outline dash-btn--sm students-panel__details-btn"
+              onClick={() => navigate(`/admin/students/${row.id}`)}
+            >
+              تفاصيل
+            </button>
+          )}
         />
       </div>
 
@@ -219,8 +279,13 @@ export default function AdminSubscribers() {
           setAddOpen(false);
           resetAddModal();
         }}
+        footer={(
+          <button type="submit" form="add-student-form" className="dash-btn dash-btn--primary" disabled={savingStudent}>
+            {savingStudent ? 'جاري الحفظ...' : 'حفظ الطالب'}
+          </button>
+        )}
       >
-        <form className="admin-form admin-form--modal" onSubmit={handleCreateStudent}>
+        <form id="add-student-form" className="admin-form admin-form--modal" onSubmit={handleCreateStudent}>
           {error && addOpen && <div className="admin-alert error">{error}</div>}
 
           <div className="admin-form-grid">
@@ -277,12 +342,13 @@ export default function AdminSubscribers() {
               required
             />
             <label className="admin-form-full">
-              دورة إضافية (اختياري)
+              الكورس *
               <select
                 value={studentForm.course_id}
                 onChange={(e) => setStudentForm({ ...studentForm, course_id: e.target.value })}
+                required
               >
-                <option value="">بدون — تسجيل تلقائي في دورات الصف</option>
+                <option value="">اختار الكورس</option>
                 {courses.map((course) => (
                   <option key={course.id} value={String(course.id)}>
                     {course.title_ar}
@@ -290,12 +356,6 @@ export default function AdminSubscribers() {
                 ))}
               </select>
             </label>
-          </div>
-
-          <div className="admin-form-actions">
-            <button type="submit" className="dash-btn dash-btn--primary" disabled={savingStudent}>
-              {savingStudent ? 'جاري الحفظ...' : 'حفظ الطالب'}
-            </button>
           </div>
         </form>
       </AdminModal>
@@ -307,8 +367,13 @@ export default function AdminSubscribers() {
           setEnrollOpen(false);
           resetEnrollModal();
         }}
+        footer={(
+          <button type="submit" form="enroll-student-form" className="dash-btn dash-btn--primary" disabled={enrolling}>
+            {enrolling ? 'جاري التسجيل...' : 'تسجيل في الدورة'}
+          </button>
+        )}
       >
-        <form className="admin-form admin-form--modal" onSubmit={handleEnroll}>
+        <form id="enroll-student-form" className="admin-form admin-form--modal" onSubmit={handleEnroll}>
           {error && enrollOpen && <div className="admin-alert error">{error}</div>}
 
           <label>
@@ -354,12 +419,6 @@ export default function AdminSubscribers() {
               ))}
             </select>
           </label>
-
-          <div className="admin-form-actions">
-            <button type="submit" className="dash-btn dash-btn--primary" disabled={enrolling}>
-              {enrolling ? 'جاري التسجيل...' : 'تسجيل في الدورة'}
-            </button>
-          </div>
         </form>
       </AdminModal>
     </div>

@@ -143,3 +143,25 @@ export async function fetchStudentExams() {
 export async function fetchStudentExam(id) {
   return studentFetch(`/exams/${id}`);
 }
+
+export async function submitStudentExam(id, body) {
+  return studentFetch(`/exams/${id}/submit`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchStudentCourseContent(courseId) {
+  return studentFetch(`/courses/${courseId}/content`);
+}
+
+export async function fetchLessonPlayerToken(courseId, lessonId) {
+  return studentFetch(`/courses/${courseId}/lessons/${lessonId}/player-token`);
+}
+
+export async function logStudentLessonActivity(courseId, lessonId) {
+  return studentFetch(`/courses/${courseId}/lessons/${lessonId}/activity`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}

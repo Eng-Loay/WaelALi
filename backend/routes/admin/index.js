@@ -13,6 +13,7 @@ const bannersRouter = require('./banners');
 const notificationsRouter = require('./notifications');
 const uploadRouter = require('./upload');
 const courseContentRouter = require('./courseContent');
+const attendanceRouter = require('./attendance');
 
 const router = express.Router();
 
@@ -30,5 +31,6 @@ router.use('/banners', bannersRouter);
 router.use('/notifications', notificationsRouter);
 router.use('/upload', uploadRouter);
 router.use('/course-content', courseContentRouter);
+router.use('/attendance', attendanceRouter);
 
 module.exports = router;

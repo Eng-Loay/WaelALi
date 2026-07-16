@@ -146,6 +146,10 @@ export async function fetchAdminStudents(courseId) {
   return adminFetch(path);
 }
 
+export async function fetchAdminStudent(studentId) {
+  return adminFetch(`/students/${studentId}`);
+}
+
 export async function lookupStudentByEmail(email) {
   const query = encodeURIComponent(email.trim());
   return adminFetch(`/students/lookup?email=${query}`);
@@ -163,6 +167,30 @@ export async function enrollStudentByEmail(body) {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function fetchAttendanceCourses() {
+  return adminFetch("/attendance/courses");
+}
+
+export async function fetchCourseAttendance(courseId, date) {
+  const q = date ? `?date=${encodeURIComponent(date)}` : "";
+  return adminFetch(`/attendance/courses/${courseId}${q}`);
+}
+
+export async function updateCourseAttendance(courseId, body) {
+  return adminFetch(`/attendance/courses/${courseId}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchAssignmentSubmissions(assignmentId) {
+  return adminFetch(`/assignments/${assignmentId}/submissions`);
+}
+
+export async function fetchExamResults(examId) {
+  return adminFetch(`/exams/${examId}/results`);
 }
 
 export const adminResource = (name) => ({
